@@ -244,10 +244,16 @@ kafka:
     log_retention_check_interval_ms: "300000"
     ##
     ## Zookeeper connection string (if using external Zookeeper)
+    ## Leave empty to use KRaft mode (Kafka 4.0+)
     zookeeper_connect: ""
     ##
     ## Zookeeper connection timeout
     zookeeper_connection_timeout_ms: "18000"
+    ##
+    ## Controller quorum voters for KRaft mode (required if zookeeper_connect is empty)
+    ## Format: id1@host1:port1,id2@host2:port2
+    ## Example: 1@controller-0.controller-headless:9093,2@controller-1.controller-headless:9093,3@controller-2.controller-headless:9093
+    controller_quorum_voters: ""
     ##
     ## Group initial rebalance delay
     group_initial_rebalance_delay_ms: "0"

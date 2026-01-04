@@ -12,6 +12,16 @@ data:
     # Broker ID (set automatically from pod ordinal)
     broker.id=${KAFKA_BROKER_ID}
     
+    {{- if not .Values.kafka.configmap.zookeeper_connect }}
+    # KRaft mode configuration (Kafka 4.0+)
+    # Process roles: broker, controller, or broker,controller
+    process.roles=broker
+    {{- if .Values.kafka.configmap.controller_quorum_voters }}
+    # Controller quorum voters (required for KRaft mode)
+    controller.quorum.voters={{ .Values.kafka.configmap.controller_quorum_voters }}
+    {{- end }}
+    {{- end }}
+    
     # Network threads
     num.network.threads={{ .Values.kafka.configmap.num_network_threads }}
     
