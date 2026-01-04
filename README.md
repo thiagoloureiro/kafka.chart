@@ -11,13 +11,13 @@ A Helm chart for deploying ClickHouse on Kubernetes. ClickHouse is an open-sourc
 **Chart Details:**
 - **Chart Version**: 25.21
 - **App Version**: 25.12
-- **Repository**: `clickhouse/clickhouse`
+- **Repository**: `kafka-charts/clickhouse`
 
 **Quick Start:**
 ```bash
-helm repo add clickhouse https://thiagoloureiro.github.io/kafka.chart/
+helm repo add kafka-charts https://thiagoloureiro.github.io/kafka.chart/
 helm repo update
-helm install my-clickhouse clickhouse/clickhouse
+helm install my-clickhouse kafka-charts/clickhouse
 ```
 
 For more information, see the [ClickHouse Chart README](./clickhouse/README.md).
@@ -29,13 +29,13 @@ A Helm chart for deploying Apache Kafka on Kubernetes. Apache Kafka is a distrib
 **Chart Details:**
 - **Chart Version**: 0.1.0
 - **App Version**: 4.1.1
-- **Repository**: `kafka/kafka`
+- **Repository**: `kafka-charts/kafka`
 
 **Quick Start:**
 ```bash
-helm repo add kafka https://thiagoloureiro.github.io/kafka.chart/
+helm repo add kafka-charts https://thiagoloureiro.github.io/kafka.chart/
 helm repo update
-helm install my-kafka kafka/kafka
+helm install my-kafka kafka-charts/kafka
 ```
 
 For more information, see the [Kafka Chart README](./kafka/README.md).
