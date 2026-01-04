@@ -1,0 +1,415 @@
+categories:
+  - Kafka
+  - Messaging
+  - Streaming
+
+questions:
+  # ============================================
+  # Basic Configuration
+  # ============================================
+  - variable: kafka.replicas
+    label: "Number of Kafka Brokers"
+    description: "Number of Kafka broker replicas to deploy. For production, use at least 3 for high availability."
+    type: int
+    default: 3
+    required: true
+    group: "Basic Configuration"
+
+  - variable: kafka.image
+    label: "Kafka Image Repository"
+    description: "Container image repository for Kafka."
+    type: string
+    default: "apache/kafka"
+    required: true
+    group: "Basic Configuration"
+
+  - variable: kafka.imageVersion
+    label: "Kafka Image Version"
+    description: "Container image version/tag for Kafka."
+    type: string
+    default: "4.1.1"
+    required: true
+    group: "Basic Configuration"
+
+  - variable: kafka.imagePullPolicy
+    label: "Image Pull Policy"
+    description: "Kubernetes image pull policy. Use 'Always' for latest tags, 'IfNotPresent' for versioned tags."
+    type: enum
+    default: "IfNotPresent"
+    options:
+      - "Always"
+      - "IfNotPresent"
+      - "Never"
+    required: true
+    group: "Basic Configuration"
+
+  - variable: timezone
+    label: "Timezone"
+    description: "Timezone for the Kafka cluster (e.g., UTC, America/New_York)."
+    type: string
+    default: "UTC"
+    required: false
+    group: "Basic Configuration"
+
+  # ============================================
+  # Networking & Ports
+  # ============================================
+  - variable: kafka.client_port
+    label: "Client Port"
+    description: "Port for client connections to Kafka brokers."
+    type: int
+    default: 9092
+    required: true
+    group: "Networking & Ports"
+
+  - variable: kafka.internal_port
+    label: "Internal Broker Port"
+    description: "Port for internal broker-to-broker communication."
+    type: int
+    default: 9093
+    required: true
+    group: "Networking & Ports"
+
+  - variable: kafka.service.type
+    label: "Service Type"
+    description: "Kubernetes service type for exposing Kafka brokers."
+    type: enum
+    default: "ClusterIP"
+    options:
+      - "ClusterIP"
+      - "NodePort"
+      - "LoadBalancer"
+    required: true
+    group: "Networking & Ports"
+
+  - variable: kafka.service.loadBalancerIP
+    label: "LoadBalancer IP"
+    description: "Static IP address for LoadBalancer service type (only used if service.type is LoadBalancer)."
+    type: string
+    default: ""
+    required: false
+    show_if: "kafka.service.type=LoadBalancer"
+    group: "Networking & Ports"
+
+  # ============================================
+  # Storage Configuration
+  # ============================================
+  - variable: kafka.persistentVolumeClaim.enabled
+    label: "Enable Persistent Storage"
+    description: "Enable persistent volume claims for Kafka data. Disable for ephemeral storage (not recommended for production)."
+    type: bool
+    default: true
+    required: true
+    group: "Storage Configuration"
+
+  - variable: kafka.persistentVolumeClaim.dataPersistentVolume.enabled
+    label: "Enable Data Persistent Volume"
+    description: "Enable persistent volume for Kafka data directory."
+    type: bool
+    default: true
+    required: true
+    show_if: "kafka.persistentVolumeClaim.enabled=true"
+    group: "Storage Configuration"
+
+  - variable: kafka.persistentVolumeClaim.dataPersistentVolume.storage
+    label: "Data Volume Size"
+    description: "Size of the persistent volume for Kafka data (e.g., 100Gi, 500Gi)."
+    type: string
+    default: "100Gi"
+    required: true
+    show_if: "kafka.persistentVolumeClaim.dataPersistentVolume.enabled=true"
+    group: "Storage Configuration"
+
+  - variable: kafka.persistentVolumeClaim.dataPersistentVolume.storageClassName
+    label: "Storage Class Name"
+    description: "Storage class name for persistent volumes. Leave empty to use the cluster default."
+    type: string
+    default: ""
+    required: false
+    show_if: "kafka.persistentVolumeClaim.dataPersistentVolume.enabled=true"
+    group: "Storage Configuration"
+
+  # ============================================
+  # Kafka Configuration
+  # ============================================
+  - variable: kafka.configmap.num_partitions
+    label: "Default Number of Partitions"
+    description: "Default number of partitions per topic when auto-creating topics."
+    type: int
+    default: 3
+    required: true
+    group: "Kafka Configuration"
+
+  - variable: kafka.configmap.offsets_topic_replication_factor
+    label: "Offsets Topic Replication Factor"
+    description: "Replication factor for the __consumer_offsets topic. Should match or be less than the number of replicas."
+    type: int
+    default: 3
+    required: true
+    group: "Kafka Configuration"
+
+  - variable: kafka.configmap.transaction_state_log_replication_factor
+    label: "Transaction State Log Replication Factor"
+    description: "Replication factor for transaction state logs. Should match or be less than the number of replicas."
+    type: int
+    default: 3
+    required: true
+    group: "Kafka Configuration"
+
+  - variable: kafka.configmap.transaction_state_log_min_isr
+    label: "Transaction State Log Min ISR"
+    description: "Minimum in-sync replicas for transaction state logs. Should be at least 2 for production."
+    type: int
+    default: 2
+    required: true
+    group: "Kafka Configuration"
+
+  - variable: kafka.configmap.log_retention_hours
+    label: "Log Retention Hours"
+    description: "Number of hours to retain log data before deletion (168 = 7 days)."
+    type: int
+    default: 168
+    required: true
+    group: "Kafka Configuration"
+
+  - variable: kafka.configmap.log_segment_bytes
+    label: "Log Segment Bytes"
+    description: "Maximum size of a log segment file before rolling (in bytes). Default is 1GB."
+    type: string
+    default: "1073741824"
+    required: true
+    group: "Kafka Configuration"
+
+  - variable: kafka.configmap.zookeeper_connect
+    label: "ZooKeeper Connection String"
+    description: "ZooKeeper connection string (e.g., zookeeper:2181). Leave empty if using KRaft mode (Kafka 2.8+)."
+    type: string
+    default: ""
+    required: false
+    group: "Kafka Configuration"
+
+  - variable: kafka.configmap.zookeeper_connection_timeout_ms
+    label: "ZooKeeper Connection Timeout (ms)"
+    description: "ZooKeeper connection timeout in milliseconds."
+    type: int
+    default: 18000
+    required: false
+    show_if: "kafka.configmap.zookeeper_connect!="
+    group: "Kafka Configuration"
+
+  # ============================================
+  # Resource Management
+  # ============================================
+  - variable: kafka.resources.limits.cpu
+    label: "CPU Limit"
+    description: "Maximum CPU resources allowed for each Kafka broker (e.g., 2000m, 2)."
+    type: string
+    default: ""
+    required: false
+    group: "Resource Management"
+
+  - variable: kafka.resources.limits.memory
+    label: "Memory Limit"
+    description: "Maximum memory resources allowed for each Kafka broker (e.g., 4Gi, 8Gi)."
+    type: string
+    default: ""
+    required: false
+    group: "Resource Management"
+
+  - variable: kafka.resources.requests.cpu
+    label: "CPU Request"
+    description: "Minimum CPU resources requested for each Kafka broker (e.g., 1000m, 1)."
+    type: string
+    default: ""
+    required: false
+    group: "Resource Management"
+
+  - variable: kafka.resources.requests.memory
+    label: "Memory Request"
+    description: "Minimum memory resources requested for each Kafka broker (e.g., 2Gi, 4Gi)."
+    type: string
+    default: ""
+    required: false
+    group: "Resource Management"
+
+  - variable: kafka.priorityClassName
+    label: "Priority Class Name"
+    description: "Priority class name for Kafka pods. Leave empty to use default priority."
+    type: string
+    default: ""
+    required: false
+    group: "Resource Management"
+
+  # ============================================
+  # Health Checks & Probes
+  # ============================================
+  - variable: kafka.startupProbe.enabled
+    label: "Enable Startup Probe"
+    description: "Enable startup probe to detect when Kafka broker is ready to accept connections."
+    type: bool
+    default: true
+    required: true
+    group: "Health Checks & Probes"
+
+  - variable: kafka.startupProbe.periodSeconds
+    label: "Startup Probe Period (seconds)"
+    description: "How often to perform startup probe checks."
+    type: int
+    default: 10
+    required: true
+    show_if: "kafka.startupProbe.enabled=true"
+    group: "Health Checks & Probes"
+
+  - variable: kafka.startupProbe.failureThreshold
+    label: "Startup Probe Failure Threshold"
+    description: "Number of consecutive failures before marking pod as failed."
+    type: int
+    default: 30
+    required: true
+    show_if: "kafka.startupProbe.enabled=true"
+    group: "Health Checks & Probes"
+
+  - variable: kafka.livenessProbe.enabled
+    label: "Enable Liveness Probe"
+    description: "Enable liveness probe to detect and restart unhealthy Kafka brokers."
+    type: bool
+    default: true
+    required: true
+    group: "Health Checks & Probes"
+
+  - variable: kafka.livenessProbe.initialDelaySeconds
+    label: "Liveness Probe Initial Delay (seconds)"
+    description: "Number of seconds after container starts before liveness probe is initiated."
+    type: int
+    default: 30
+    required: true
+    show_if: "kafka.livenessProbe.enabled=true"
+    group: "Health Checks & Probes"
+
+  - variable: kafka.livenessProbe.periodSeconds
+    label: "Liveness Probe Period (seconds)"
+    description: "How often to perform liveness probe checks."
+    type: int
+    default: 10
+    required: true
+    show_if: "kafka.livenessProbe.enabled=true"
+    group: "Health Checks & Probes"
+
+  - variable: kafka.readinessProbe.enabled
+    label: "Enable Readiness Probe"
+    description: "Enable readiness probe to detect when Kafka broker is ready to serve traffic."
+    type: bool
+    default: true
+    required: true
+    group: "Health Checks & Probes"
+
+  - variable: kafka.readinessProbe.initialDelaySeconds
+    label: "Readiness Probe Initial Delay (seconds)"
+    description: "Number of seconds after container starts before readiness probe is initiated."
+    type: int
+    default: 10
+    required: true
+    show_if: "kafka.readinessProbe.enabled=true"
+    group: "Health Checks & Probes"
+
+  - variable: kafka.readinessProbe.periodSeconds
+    label: "Readiness Probe Period (seconds)"
+    description: "How often to perform readiness probe checks."
+    type: int
+    default: 10
+    required: true
+    show_if: "kafka.readinessProbe.enabled=true"
+    group: "Health Checks & Probes"
+
+  # ============================================
+  # Deployment Strategy
+  # ============================================
+  - variable: kafka.podManagementPolicy
+    label: "Pod Management Policy"
+    description: "StatefulSet pod management policy. Use 'Parallel' for faster startup, 'OrderedReady' for sequential startup."
+    type: enum
+    default: "Parallel"
+    options:
+      - "Parallel"
+      - "OrderedReady"
+    required: true
+    group: "Deployment Strategy"
+
+  - variable: kafka.updateStrategy
+    label: "Update Strategy"
+    description: "StatefulSet update strategy. Use 'RollingUpdate' for zero-downtime updates, 'OnDelete' for manual control."
+    type: enum
+    default: "RollingUpdate"
+    options:
+      - "RollingUpdate"
+      - "OnDelete"
+    required: true
+    group: "Deployment Strategy"
+
+  # ============================================
+  # Monitoring & Metrics
+  # ============================================
+  - variable: kafka.metrics.enabled
+    label: "Enable Metrics"
+    description: "Enable Prometheus metrics endpoint for Kafka brokers."
+    type: bool
+    default: false
+    required: true
+    group: "Monitoring & Metrics"
+
+  - variable: kafka.metrics.port
+    label: "Metrics Port"
+    description: "Port for Prometheus metrics endpoint."
+    type: int
+    default: 9094
+    required: true
+    show_if: "kafka.metrics.enabled=true"
+    group: "Monitoring & Metrics"
+
+  - variable: kafka.metrics.serviceMonitor.enabled
+    label: "Enable Prometheus ServiceMonitor"
+    description: "Enable Prometheus Operator ServiceMonitor for automatic metrics collection."
+    type: bool
+    default: false
+    required: true
+    show_if: "kafka.metrics.enabled=true"
+    group: "Monitoring & Metrics"
+
+  - variable: kafka.metrics.serviceMonitor.namespace
+    label: "ServiceMonitor Namespace"
+    description: "Namespace for ServiceMonitor resource. Leave empty to use chart namespace."
+    type: string
+    default: ""
+    required: false
+    show_if: "kafka.metrics.serviceMonitor.enabled=true"
+    group: "Monitoring & Metrics"
+
+  # ============================================
+  # Service Account
+  # ============================================
+  - variable: serviceAccount.enabled
+    label: "Enable Service Account"
+    description: "Enable custom service account for Kafka pods."
+    type: bool
+    default: false
+    required: true
+    group: "Service Account"
+
+  - variable: serviceAccount.name
+    label: "Service Account Name"
+    description: "Name of the service account to use for Kafka pods."
+    type: string
+    default: "kafka"
+    required: true
+    show_if: "serviceAccount.enabled=true"
+    group: "Service Account"
+
+  - variable: serviceAccount.automountServiceAccountToken
+    label: "Automount Service Account Token"
+    description: "Automatically mount service account token in pods."
+    type: bool
+    default: true
+    required: true
+    show_if: "serviceAccount.enabled=true"
+    group: "Service Account"
+

@@ -77,26 +77,25 @@ spec:
           - |
             export POD_ORDINAL=${HOSTNAME##*-}
             export BROKER_ID=${POD_ORDINAL}
-            # Substitute POD_ORDINAL in server.properties
-            sed -i "s/\${POD_ORDINAL}/${POD_ORDINAL}/g" /opt/kafka/config/server.properties
-            sed -i "s/\${KAFKA_BROKER_ID}/${BROKER_ID}/g" /opt/kafka/config/server.properties
-            sed -i "s|\${KAFKA_ADVERTISED_LISTENERS}|PLAINTEXT://{{ include "kafka.fullname" . }}-${POD_ORDINAL}.{{ include "kafka.fullname" . }}-headless.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}:{{ .Values.kafka.client_port }},PLAINTEXT_INTERNAL://{{ include "kafka.fullname" . }}-${POD_ORDINAL}.{{ include "kafka.fullname" . }}-headless.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}:{{ .Values.kafka.internal_port }}|g" /opt/kafka/config/server.properties
-            sed -i "s|\${KAFKA_LISTENERS}|{{ include "kafka.listeners" . }}|g" /opt/kafka/config/server.properties
-            sed -i "s/\${KAFKA_LOG_DIRS}/{{ include "kafka.fullpath" . }}/g" /opt/kafka/config/server.properties
-            sed -i "s/\${KAFKA_NUM_PARTITIONS}/{{ .Values.kafka.configmap.num_partitions }}/g" /opt/kafka/config/server.properties
-            sed -i "s/\${KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR}/{{ .Values.kafka.configmap.offsets_topic_replication_factor }}/g" /opt/kafka/config/server.properties
-            sed -i "s/\${KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR}/{{ .Values.kafka.configmap.transaction_state_log_replication_factor }}/g" /opt/kafka/config/server.properties
-            sed -i "s/\${KAFKA_TRANSACTION_STATE_LOG_MIN_ISR}/{{ .Values.kafka.configmap.transaction_state_log_min_isr }}/g" /opt/kafka/config/server.properties
-            sed -i "s/\${KAFKA_LOG_RETENTION_HOURS}/{{ .Values.kafka.configmap.log_retention_hours }}/g" /opt/kafka/config/server.properties
-            sed -i "s/\${KAFKA_LOG_SEGMENT_BYTES}/{{ .Values.kafka.configmap.log_segment_bytes }}/g" /opt/kafka/config/server.properties
-            /opt/kafka/bin/kafka-server-start.sh /opt/kafka/config/server.properties
+            # Copy config to writable location and substitute variables
+            cp /opt/kafka/config/server.properties /tmp/server.properties
+            sed -i "s/\${POD_ORDINAL}/${POD_ORDINAL}/g" /tmp/server.properties
+            sed -i "s/\${KAFKA_BROKER_ID}/${BROKER_ID}/g" /tmp/server.properties
+            sed -i "s|\${KAFKA_ADVERTISED_LISTENERS}|PLAINTEXT://{{ include "kafka.fullname" . }}-${POD_ORDINAL}.{{ include "kafka.fullname" . }}-headless.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}:{{ .Values.kafka.client_port }},PLAINTEXT_INTERNAL://{{ include "kafka.fullname" . }}-${POD_ORDINAL}.{{ include "kafka.fullname" . }}-headless.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}:{{ .Values.kafka.internal_port }}|g" /tmp/server.properties
+            sed -i "s|\${KAFKA_LISTENERS}|{{ include "kafka.listeners" . }}|g" /tmp/server.properties
+            sed -i "s|\${KAFKA_LOG_DIRS}|{{ include "kafka.fullpath" . }}|g" /tmp/server.properties
+            sed -i "s|\${KAFKA_NUM_PARTITIONS}|{{ .Values.kafka.configmap.num_partitions }}|g" /tmp/server.properties
+            sed -i "s|\${KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR}|{{ .Values.kafka.configmap.offsets_topic_replication_factor }}|g" /tmp/server.properties
+            sed -i "s|\${KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR}|{{ .Values.kafka.configmap.transaction_state_log_replication_factor }}|g" /tmp/server.properties
+            sed -i "s|\${KAFKA_TRANSACTION_STATE_LOG_MIN_ISR}|{{ .Values.kafka.configmap.transaction_state_log_min_isr }}|g" /tmp/server.properties
+            sed -i "s|\${KAFKA_LOG_RETENTION_HOURS}|{{ .Values.kafka.configmap.log_retention_hours }}|g" /tmp/server.properties
+            sed -i "s|\${KAFKA_LOG_SEGMENT_BYTES}|{{ .Values.kafka.configmap.log_segment_bytes }}|g" /tmp/server.properties
+            /opt/kafka/bin/kafka-server-start.sh /tmp/server.properties
         env:
         - name: POD_ORDINAL
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        - name: KAFKA_BROKER_ID
-          value: "${HOSTNAME##*-}"
         ports:
         - name: client-port
           containerPort: {{ .Values.kafka.client_port | int }}
