@@ -8,11 +8,6 @@ This repository contains Helm charts for deploying various applications on Kuber
 
 A Helm chart for deploying ClickHouse on Kubernetes. ClickHouse is an open-source column-oriented database management system capable of real-time generation of analytical data reports using SQL queries.
 
-**Chart Details:**
-- **Chart Version**: 25.21
-- **App Version**: 25.12
-- **Repository**: `kafka-charts/clickhouse`
-
 **Quick Start:**
 ```bash
 helm repo add kafka-charts https://thiagoloureiro.github.io/kafka.chart/
