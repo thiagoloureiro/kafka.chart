@@ -1,152 +1,85 @@
-# ClickHouse Helm Chart
+# Helm Charts Repository
+
+This repository contains Helm charts for deploying various applications on Kubernetes.
+
+## Available Charts
+
+### [ClickHouse](./clickhouse/)
 
 A Helm chart for deploying ClickHouse on Kubernetes. ClickHouse is an open-source column-oriented database management system capable of real-time generation of analytical data reports using SQL queries.
 
-## Features
-
-- **High Availability**: Supports multi-replica deployments with StatefulSet
-- **Persistent Storage**: Configurable persistent volumes for data and logs
-- **Metrics & Monitoring**: Built-in Prometheus metrics exporter with optional ServiceMonitor support
-- **Web Interface**: Optional Tabix web UI for managing ClickHouse
-- **Flexible Configuration**: Extensive configuration options via values.yaml
-- **ZooKeeper Support**: Optional ZooKeeper integration for replicated tables
-- **Ingress Support**: Configurable ingress for HTTP access
-- **Resource Management**: Configurable resource limits and requests
-
-## Chart Details
-
-- **Chart Version**: 25.12
+**Chart Details:**
+- **Chart Version**: 25.21
 - **App Version**: 25.12
-- **Maintainer**: thiagoloureiro
+- **Repository**: `clickhouse/clickhouse`
 
-## Installation
+**Quick Start:**
+```bash
+helm repo add clickhouse https://thiagoloureiro.github.io/kafka.chart/
+helm repo update
+helm install my-clickhouse clickhouse/clickhouse
+```
+
+For more information, see the [ClickHouse Chart README](./clickhouse/README.md).
+
+### [Kafka](./kafka/)
+
+A Helm chart for deploying Apache Kafka on Kubernetes. Apache Kafka is a distributed event streaming platform capable of handling trillions of events a day.
+
+**Chart Details:**
+- **Chart Version**: 0.1.0
+- **App Version**: 4.1.1
+- **Repository**: `kafka/kafka`
+
+**Quick Start:**
+```bash
+helm repo add kafka https://thiagoloureiro.github.io/kafka.chart/
+helm repo update
+helm install my-kafka kafka/kafka
+```
+
+For more information, see the [Kafka Chart README](./kafka/README.md).
+
+## Repository Setup
 
 ### Add the Helm repository
 
 ```bash
-helm repo add clickhouse https://thiagoloureiro.github.io/clickhouse.chart/
+helm repo add kafka-charts https://thiagoloureiro.github.io/kafka.chart/
 helm repo update
 ```
 
-### Install the chart
+### List available charts
 
 ```bash
-helm install my-clickhouse clickhouse/clickhouse
+helm search repo kafka-charts
+```
+
+## Installation Examples
+
+### Install ClickHouse
+
+```bash
+helm install my-clickhouse kafka-charts/clickhouse
+```
+
+### Install Kafka
+
+```bash
+helm install my-kafka kafka-charts/kafka
 ```
 
 ### Install with custom values
 
 ```bash
-helm install my-clickhouse clickhouse/clickhouse -f my-values.yaml
+helm install my-kafka kafka-charts/kafka -f my-kafka-values.yaml
 ```
-
-## Configuration
-
-The following table lists the most important configurable parameters and their default values:
-
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `clickhouse.replicas` | Number of ClickHouse replicas | `3` |
-| `clickhouse.image` | ClickHouse image | `clickhouse/clickhouse-server` |
-| `clickhouse.imageVersion` | ClickHouse image version | `25.12` |
-| `clickhouse.persistentVolumeClaim.enabled` | Enable persistent volumes | `true` |
-| `clickhouse.persistentVolumeClaim.dataPersistentVolume.storage` | Data volume size | `100Gi` |
-| `clickhouse.metrics.enabled` | Enable Prometheus metrics | `true` |
-| `clickhouse.metrics.port` | Metrics port | `9116` |
-| `tabix.enabled` | Enable Tabix web UI | `false` |
-| `timezone` | Timezone for the cluster | `UTC` |
-
-For a complete list of configuration options, see [values.yaml](clickhouse/values.yaml).
-
-## Examples
-
-### Basic Installation
-
-```bash
-helm install clickhouse clickhouse/clickhouse
-```
-
-### Installation with Custom Replicas
-
-```bash
-helm install clickhouse clickhouse/clickhouse \
-  --set clickhouse.replicas=5
-```
-
-### Installation with Tabix UI
-
-```bash
-helm install clickhouse clickhouse/clickhouse \
-  --set tabix.enabled=true
-```
-
-### Installation with Custom Storage
-
-```bash
-helm install clickhouse clickhouse/clickhouse \
-  --set clickhouse.persistentVolumeClaim.dataPersistentVolume.storage=500Gi
-```
-
-### Installation with Prometheus ServiceMonitor
-
-```bash
-helm install clickhouse clickhouse/clickhouse \
-  --set clickhouse.metrics.serviceMonitor.enabled=true
-```
-
-## Accessing ClickHouse
-
-### HTTP Interface
-
-The HTTP interface is available on port `8123`:
-
-```bash
-# Port forward to access locally
-kubectl port-forward svc/clickhouse 8123:8123
-
-# Query via HTTP
-curl 'http://localhost:8123/?query=SELECT%201'
-```
-
-### Native TCP Interface
-
-The native TCP interface is available on port `9000`:
-
-```bash
-# Port forward to access locally
-kubectl port-forward svc/clickhouse 9000:9000
-```
-
-### Tabix Web UI
-
-If Tabix is enabled, you can access it via port forwarding or ingress:
-
-```bash
-# Port forward to access locally
-kubectl port-forward svc/clickhouse-tabix 8080:80
-```
-
-Then open `http://localhost:8080` in your browser.
-
-## Upgrading
-
-```bash
-helm upgrade clickhouse clickhouse/clickhouse
-```
-
-## Uninstalling
-
-```bash
-helm uninstall clickhouse
-```
-
-**Note**: This will delete all resources including persistent volumes. Make sure to backup your data before uninstalling.
 
 ## Development
 
 ### Building and Publishing
 
-To create a new version of the chart:
+To create a new version of a chart:
 
 ```bash
 ./create-version.sh
@@ -157,15 +90,29 @@ This script will:
 2. Update the repository index
 3. Prepare the chart for publishing to GitHub Pages
 
+### Chart Structure
+
+```
+.
+├── clickhouse/          # ClickHouse Helm chart
+│   ├── Chart.yaml
+│   ├── values.yaml
+│   ├── README.md
+│   └── templates/
+├── kafka/               # Kafka Helm chart
+│   ├── Chart.yaml
+│   ├── values.yaml
+│   ├── README.md
+│   └── templates/
+├── index.yaml          # Helm repository index
+└── README.md           # This file
+```
+
 ## Resources
 
-- [ClickHouse Documentation](https://clickhouse.com/docs/)
-- [ClickHouse GitHub](https://github.com/ClickHouse/ClickHouse)
 - [Helm Documentation](https://helm.sh/docs/)
-
-## License
-
-This Helm chart is provided as-is. Please refer to the ClickHouse license for the database software itself.
+- [ClickHouse Documentation](https://clickhouse.com/docs/)
+- [Apache Kafka Documentation](https://kafka.apache.org/documentation/)
 
 ## Contributing
 
@@ -173,5 +120,8 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Support
 
-For issues and questions, please open an issue on the [GitHub repository](https://github.com/thiagoloureiro/clickhouse.chart).
+For issues and questions, please open an issue on the [GitHub repository](https://github.com/thiagoloureiro/kafka.chart).
 
+## License
+
+These Helm charts are provided as-is. Please refer to the respective software licenses for the applications themselves.
