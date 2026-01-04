@@ -259,6 +259,10 @@ kafka:
     ## Controller listener port for KRaft mode (used when brokers also act as controllers)
     controller_listener_port: "9094"
     ##
+    ## Cluster ID for KRaft mode (auto-generated if empty, based on release name)
+    ## This should be consistent across all brokers in the cluster
+    cluster_id: ""
+    ##
     ## Group initial rebalance delay
     group_initial_rebalance_delay_ms: "0"
     ##
