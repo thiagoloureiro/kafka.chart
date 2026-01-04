@@ -11,7 +11,7 @@ keywords:
 name: kafka
 sources:
   - https://github.com/thiagoloureiro/kafka.chart
-version: '0.9.0'
+version: '0.10.0'
 maintainers:
   - name: thiagoloureiro
 

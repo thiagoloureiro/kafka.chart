@@ -80,6 +80,12 @@ spec:
             export LOG_DIRS={{ include "kafka.fullpath" . }}
             # Ensure log directory exists (fsGroup in podSecurityContext handles permissions)
             mkdir -p "${LOG_DIRS}"
+            # Create Kafka application logs directory (for GC logs, etc.)
+            # Use a writable location since /opt/kafka/logs might not be writable
+            export KAFKA_LOG_DIR=/tmp/kafka-logs
+            mkdir -p "${KAFKA_LOG_DIR}"
+            # Override JVM GC log location to use writable directory
+            export KAFKA_OPTS="-Xlog:gc*:file=${KAFKA_LOG_DIR}/kafkaServer-gc.log:time,tags:filecount=10,filesize=100M ${KAFKA_OPTS:-}"
             # Copy config to writable location and substitute variables
             cp /opt/kafka/config/server.properties /tmp/server.properties
             sed -i "s/\${POD_ORDINAL}/${POD_ORDINAL}/g" /tmp/server.properties
@@ -108,6 +114,8 @@ spec:
               echo "Storage already formatted, skipping format step"
             fi
             {{- end }}
+            # Start Kafka (redirect logs to writable location if needed)
+            export KAFKA_LOG4J_OPTS="-Dkafka.logs.dir=${KAFKA_LOG_DIR}"
             /opt/kafka/bin/kafka-server-start.sh /tmp/server.properties
         env:
         - name: POD_ORDINAL
