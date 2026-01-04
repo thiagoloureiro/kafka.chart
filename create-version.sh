@@ -11,4 +11,4 @@ helm package kafka
 echo "Updating repository index..."
 helm repo index --url https://thiagoloureiro.github.io/kafka.chart/ .
 
-echo "Done! Charts packaged and index updated."  
+echo "Done! Charts packaged and index updated." 
