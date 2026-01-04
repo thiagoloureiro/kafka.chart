@@ -80,25 +80,18 @@ spec:
             export LOG_DIRS={{ include "kafka.fullpath" . }}
             # Ensure log directory exists (fsGroup in podSecurityContext handles permissions)
             mkdir -p "${LOG_DIRS}"
-            # Create Kafka application logs directory (for GC logs, etc.)
-            # Use a writable location since /opt/kafka/logs might not be writable
-            export KAFKA_LOG_DIR=/tmp/kafka-logs
-            mkdir -p "${KAFKA_LOG_DIR}"
-            # Patch the startup script to replace the hardcoded log path in JVM args
-            # Copy and patch the script, but ensure it runs from the correct context
+            # Disable GC logging to avoid permission issues with /opt/kafka/logs
+            # Patch the startup script to remove the -Xlog GC logging option
             cp /opt/kafka/bin/kafka-server-start.sh /tmp/kafka-server-start.sh
-            # Replace the log path in the -Xlog JVM argument (all variations)
-            sed -i "s|file=\$base_dir/../logs|file=${KAFKA_LOG_DIR}|g" /tmp/kafka-server-start.sh
-            sed -i "s|file=/opt/kafka/bin/../logs|file=${KAFKA_LOG_DIR}|g" /tmp/kafka-server-start.sh
-            sed -i "s|\"\$base_dir/../logs\"|\"${KAFKA_LOG_DIR}\"|g" /tmp/kafka-server-start.sh
-            sed -i "s|'\$base_dir/../logs'|'${KAFKA_LOG_DIR}'|g" /tmp/kafka-server-start.sh
+            # Remove the -Xlog GC logging option completely (matches patterns like -Xlog:gc*:file=...)
+            sed -i 's/-Xlog:gc\*:[^ ]*//g' /tmp/kafka-server-start.sh
             # Ensure base_dir is set correctly for the patched script
             sed -i 's|^\(base_dir=.*\)|base_dir=/opt/kafka/bin|g' /tmp/kafka-server-start.sh
             # Fix any relative paths that depend on base_dir location
             sed -i "s|\$base_dir/kafka-run-class|/opt/kafka/bin/kafka-run-class|g" /tmp/kafka-server-start.sh
             chmod +x /tmp/kafka-server-start.sh
-            # Also set environment variables as backup
-            export KAFKA_JVM_PERFORMANCE_OPTS="-Xlog:gc*:file=${KAFKA_LOG_DIR}/kafkaServer-gc.log:time,tags:filecount=10,filesize=100M"
+            # Disable GC logging via environment variable as well
+            export KAFKA_JVM_PERFORMANCE_OPTS=""
             # Copy config to writable location and substitute variables
             cp /opt/kafka/config/server.properties /tmp/server.properties
             sed -i "s/\${POD_ORDINAL}/${POD_ORDINAL}/g" /tmp/server.properties
@@ -127,18 +120,15 @@ spec:
               echo "Storage already formatted, skipping format step"
             fi
             {{- end }}
-            # Start Kafka using patched script
-            export KAFKA_LOG4J_OPTS="-Dkafka.logs.dir=${KAFKA_LOG_DIR}"
+            # Start Kafka using patched script (GC logging disabled)
             /tmp/kafka-server-start.sh /tmp/server.properties
         env:
         - name: POD_ORDINAL
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        - name: KAFKA_LOG_DIR
-          value: "/tmp/kafka-logs"
         - name: KAFKA_JVM_PERFORMANCE_OPTS
-          value: "-Xlog:gc*:file=/tmp/kafka-logs/kafkaServer-gc.log:time,tags:filecount=10,filesize=100M"
+          value: ""
         ports:
         - name: client-port
           containerPort: {{ .Values.kafka.client_port | int }}
