@@ -15,11 +15,30 @@ data:
     {{- if not .Values.kafka.configmap.zookeeper_connect }}
     # KRaft mode configuration (Kafka 4.0+)
     # Process roles: broker, controller, or broker,controller
-    process.roles=broker
-    {{- if .Values.kafka.configmap.controller_quorum_voters }}
-    # Controller quorum voters (required for KRaft mode)
-    controller.quorum.voters={{ .Values.kafka.configmap.controller_quorum_voters }}
-    {{- end }}
+    process.roles=broker,controller
+    # Controller quorum voters (auto-configured from broker replicas)
+    # Format: id1@host1:port1,id2@host2:port2,id3@host3:port3
+    # Using controller listener port for quorum communication
+    controller.quorum.voters={{- range $i := until (.Values.kafka.replicas | int) }}{{ if $i }},{{ end }}{{ $i | add 1 }}@{{ include "kafka.fullname" $ }}-{{ $i }}.{{ include "kafka.fullname" $ }}-headless.{{ $.Release.Namespace }}.svc.{{ $.Values.clusterDomain }}:{{ $.Values.kafka.configmap.controller_listener_port | default "9094" }}{{ end }}
+    # Controller listener names
+    controller.listener.names=CONTROLLER
+    # Listener for controller-to-controller communication
+    listeners=CONTROLLER://0.0.0.0:{{ .Values.kafka.configmap.controller_listener_port | default "9094" }},{{ include "kafka.listeners" . }}
+    # Advertised listeners (will be substituted at runtime)
+    advertised.listeners=${KAFKA_ADVERTISED_LISTENERS}
+    # Listener security protocol map
+    listener.security.protocol.map=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+    # Controller quorum election timeout
+    controller.quorum.election.timeout.ms=1000
+    # Controller quorum fetch timeout
+    controller.quorum.fetch.timeout.ms=2000
+    {{- else }}
+    # Listeners (ZooKeeper mode)
+    listeners=${KAFKA_LISTENERS}
+    # Advertised listeners (will be substituted at runtime)
+    advertised.listeners=${KAFKA_ADVERTISED_LISTENERS}
+    # Listener security protocol map
+    listener.security.protocol.map=PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
     {{- end }}
     
     # Network threads
@@ -64,17 +83,13 @@ data:
     # Log retention check interval
     log.retention.check.interval.ms={{ .Values.kafka.configmap.log_retention_check_interval_ms }}
     
-    # Listeners
-    listeners=${KAFKA_LISTENERS}
-    
-    # Advertised listeners
-    advertised.listeners=${KAFKA_ADVERTISED_LISTENERS}
-    
-    # Listener security protocol map
-    listener.security.protocol.map=PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
-    
-    # Inter broker listener name
+    {{- if .Values.kafka.configmap.zookeeper_connect }}
+    # Inter broker listener name (ZooKeeper mode)
     inter.broker.listener.name=PLAINTEXT_INTERNAL
+    {{- else }}
+    # Inter broker listener name (KRaft mode)
+    inter.broker.listener.name=PLAINTEXT_INTERNAL
+    {{- end }}
     
     {{- if .Values.kafka.configmap.zookeeper_connect }}
     # Zookeeper connection

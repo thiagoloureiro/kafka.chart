@@ -250,10 +250,14 @@ kafka:
     ## Zookeeper connection timeout
     zookeeper_connection_timeout_ms: "18000"
     ##
-    ## Controller quorum voters for KRaft mode (required if zookeeper_connect is empty)
+    ## Controller quorum voters for KRaft mode (auto-configured if empty)
     ## Format: id1@host1:port1,id2@host2:port2
     ## Example: 1@controller-0.controller-headless:9093,2@controller-1.controller-headless:9093,3@controller-2.controller-headless:9093
+    ## If empty and zookeeper_connect is empty, will auto-configure from broker replicas (combined mode)
     controller_quorum_voters: ""
+    ##
+    ## Controller listener port for KRaft mode (used when brokers also act as controllers)
+    controller_listener_port: "9094"
     ##
     ## Group initial rebalance delay
     group_initial_rebalance_delay_ms: "0"
