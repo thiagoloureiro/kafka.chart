@@ -86,9 +86,12 @@ spec:
             mkdir -p "${KAFKA_LOG_DIR}"
             # Patch the startup script to use writable log directory
             # The script hardcodes /opt/kafka/bin/../logs, so we need to replace it
-            cp /opt/kafka/bin/kafka-server-start.sh /tmp/kafka-server-start.sh
-            sed -i "s|/opt/kafka/bin/../logs|${KAFKA_LOG_DIR}|g" /tmp/kafka-server-start.sh
-            sed -i "s|/opt/kafka/logs|${KAFKA_LOG_DIR}|g" /tmp/kafka-server-start.sh
+            # But keep the script in its original location to preserve relative paths
+            cp /opt/kafka/bin/kafka-server-start.sh /tmp/kafka-server-start.sh.orig
+            sed "s|/opt/kafka/bin/../logs|${KAFKA_LOG_DIR}|g; s|/opt/kafka/logs|${KAFKA_LOG_DIR}|g" /tmp/kafka-server-start.sh.orig > /tmp/kafka-server-start.sh
+            # Fix relative paths in the patched script to point back to /opt/kafka/bin
+            sed -i "s|\$base_dir/kafka-run-class|/opt/kafka/bin/kafka-run-class|g" /tmp/kafka-server-start.sh
+            sed -i "s|\$base_dir/|/opt/kafka/bin/|g" /tmp/kafka-server-start.sh
             chmod +x /tmp/kafka-server-start.sh
             # Copy config to writable location and substitute variables
             cp /opt/kafka/config/server.properties /tmp/server.properties
