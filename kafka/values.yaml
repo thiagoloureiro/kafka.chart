@@ -51,13 +51,13 @@ kafka:
   # rollingUpdatePartition:
 
   # pod Security Context
-  podSecurityContext: {}
-  #  fsGroup: 1001
+  podSecurityContext:
+    fsGroup: 1001
 
   # Security Context
-  securityContext: {}
-  #  runAsUser: 1001
-  #  runAsGroup: 1001
+  securityContext:
+    runAsUser: 1001
+    runAsGroup: 1001
 
   ## Additional Volumes
   # volumes: []

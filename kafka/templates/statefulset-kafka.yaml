@@ -78,7 +78,7 @@ spec:
             export POD_ORDINAL=${HOSTNAME##*-}
             export BROKER_ID=${POD_ORDINAL}
             export LOG_DIRS={{ include "kafka.fullpath" . }}
-            # Ensure log directory exists
+            # Ensure log directory exists (fsGroup in podSecurityContext handles permissions)
             mkdir -p "${LOG_DIRS}"
             # Copy config to writable location and substitute variables
             cp /opt/kafka/config/server.properties /tmp/server.properties
