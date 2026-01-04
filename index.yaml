@@ -3,7 +3,28 @@ entries:
   kafka:
   - apiVersion: v1
     appVersion: 4.1.1
-    created: "2026-01-04T18:28:13.244656-05:00"
+    created: "2026-01-04T18:34:04.012943-05:00"
+    description: Apache Kafka is a distributed event streaming platform capable of
+      handling trillions of events a day.
+    digest: c5ab87ca12f20d7ad7c49f84ac8a53e68f32ae2a2d13eb64d5d3ef56785c1a56
+    home: https://github.com/thiagoloureiro/kafka.chart
+    icon: https://kafka.apache.org/images/kafka_logo.png
+    keywords:
+    - kafka
+    - messaging
+    - streaming
+    - event-driven
+    maintainers:
+    - name: thiagoloureiro
+    name: kafka
+    sources:
+    - https://github.com/thiagoloureiro/kafka.chart
+    urls:
+    - https://thiagoloureiro.github.io/kafka.chart/kafka-0.7.0.tgz
+    version: 0.7.0
+  - apiVersion: v1
+    appVersion: 4.1.1
+    created: "2026-01-04T18:34:04.012603-05:00"
     description: Apache Kafka is a distributed event streaming platform capable of
       handling trillions of events a day.
     digest: d0d1356dee3ebcaeaab27db56a2f9eaa05711b17770e28d35bb9785ec99ad050
@@ -24,7 +45,7 @@ entries:
     version: 0.6.0
   - apiVersion: v1
     appVersion: 4.1.1
-    created: "2026-01-04T18:28:13.244105-05:00"
+    created: "2026-01-04T18:34:04.012242-05:00"
     description: Apache Kafka is a distributed event streaming platform capable of
       handling trillions of events a day.
     digest: 03c4621510f6434e99842df293f98f8f1f12fe6db8de1fd64bec9b60b202bcca
@@ -45,7 +66,7 @@ entries:
     version: 0.5.0
   - apiVersion: v1
     appVersion: 4.1.1
-    created: "2026-01-04T18:28:13.243773-05:00"
+    created: "2026-01-04T18:34:04.011886-05:00"
     description: Apache Kafka is a distributed event streaming platform capable of
       handling trillions of events a day.
     digest: 0ae293f3e7857b06eaa4dac3e5e27148e5ca651603327a3ce8b497bca9b20d5e
@@ -66,7 +87,7 @@ entries:
     version: 0.4.0
   - apiVersion: v1
     appVersion: 4.1.1
-    created: "2026-01-04T18:28:13.243439-05:00"
+    created: "2026-01-04T18:34:04.011521-05:00"
     description: Apache Kafka is a distributed event streaming platform capable of
       handling trillions of events a day.
     digest: 263daac4ee8551d6bd11ae9acd9fd7be948ef75fbea708e14f4672d96c3aade0
@@ -87,7 +108,7 @@ entries:
     version: 0.3.0
   - apiVersion: v1
     appVersion: 4.1.1
-    created: "2026-01-04T18:28:13.243073-05:00"
+    created: "2026-01-04T18:34:04.010835-05:00"
     description: Apache Kafka is a distributed event streaming platform capable of
       handling trillions of events a day.
     digest: 35f7a96c919ec4c30e71ddd0f998ca2c9dc5fa2d27de92b64aef2c2f7c55dee2
@@ -108,7 +129,7 @@ entries:
     version: 0.2.0
   - apiVersion: v1
     appVersion: 4.1.1
-    created: "2026-01-04T18:28:13.242732-05:00"
+    created: "2026-01-04T18:34:04.010497-05:00"
     description: Apache Kafka is a distributed event streaming platform capable of
       handling trillions of events a day.
     digest: 307e90d3924c9a42cbb6c31553cd8c4ec8ee8a37e894e2ae6804acacd9d4b277
@@ -127,4 +148,4 @@ entries:
     urls:
     - https://thiagoloureiro.github.io/kafka.chart/kafka-0.1.0.tgz
     version: 0.1.0
-generated: "2026-01-04T18:28:13.242316-05:00"
+generated: "2026-01-04T18:34:04.010079-05:00"
