@@ -84,15 +84,21 @@ spec:
             # Use a writable location since /opt/kafka/logs might not be writable
             export KAFKA_LOG_DIR=/tmp/kafka-logs
             mkdir -p "${KAFKA_LOG_DIR}"
-            # Patch the startup script to use writable log directory
-            # The script hardcodes /opt/kafka/bin/../logs, so we need to replace it
-            # But keep the script in its original location to preserve relative paths
-            cp /opt/kafka/bin/kafka-server-start.sh /tmp/kafka-server-start.sh.orig
-            sed "s|/opt/kafka/bin/../logs|${KAFKA_LOG_DIR}|g; s|/opt/kafka/logs|${KAFKA_LOG_DIR}|g" /tmp/kafka-server-start.sh.orig > /tmp/kafka-server-start.sh
-            # Fix relative paths in the patched script to point back to /opt/kafka/bin
+            # Patch the startup script to replace the hardcoded log path in JVM args
+            # Copy and patch the script, but ensure it runs from the correct context
+            cp /opt/kafka/bin/kafka-server-start.sh /tmp/kafka-server-start.sh
+            # Replace the log path in the -Xlog JVM argument (all variations)
+            sed -i "s|file=\$base_dir/../logs|file=${KAFKA_LOG_DIR}|g" /tmp/kafka-server-start.sh
+            sed -i "s|file=/opt/kafka/bin/../logs|file=${KAFKA_LOG_DIR}|g" /tmp/kafka-server-start.sh
+            sed -i "s|\"\$base_dir/../logs\"|\"${KAFKA_LOG_DIR}\"|g" /tmp/kafka-server-start.sh
+            sed -i "s|'\$base_dir/../logs'|'${KAFKA_LOG_DIR}'|g" /tmp/kafka-server-start.sh
+            # Ensure base_dir is set correctly for the patched script
+            sed -i 's|^\(base_dir=.*\)|base_dir=/opt/kafka/bin|g' /tmp/kafka-server-start.sh
+            # Fix any relative paths that depend on base_dir location
             sed -i "s|\$base_dir/kafka-run-class|/opt/kafka/bin/kafka-run-class|g" /tmp/kafka-server-start.sh
-            sed -i "s|\$base_dir/|/opt/kafka/bin/|g" /tmp/kafka-server-start.sh
             chmod +x /tmp/kafka-server-start.sh
+            # Also set environment variables as backup
+            export KAFKA_JVM_PERFORMANCE_OPTS="-Xlog:gc*:file=${KAFKA_LOG_DIR}/kafkaServer-gc.log:time,tags:filecount=10,filesize=100M"
             # Copy config to writable location and substitute variables
             cp /opt/kafka/config/server.properties /tmp/server.properties
             sed -i "s/\${POD_ORDINAL}/${POD_ORDINAL}/g" /tmp/server.properties
@@ -121,7 +127,7 @@ spec:
               echo "Storage already formatted, skipping format step"
             fi
             {{- end }}
-            # Start Kafka using patched startup script (redirect logs to writable location)
+            # Start Kafka using patched script
             export KAFKA_LOG4J_OPTS="-Dkafka.logs.dir=${KAFKA_LOG_DIR}"
             /tmp/kafka-server-start.sh /tmp/server.properties
         env:
