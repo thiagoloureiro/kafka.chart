@@ -1,0 +1,213 @@
+{{- if and .Values.clickhouse.configmap.enabled .Values.clickhouse.configmap.keeper.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "clickhouse.fullname" . }}-keeper
+  labels:
+    app.kubernetes.io/name: {{ include "clickhouse.name" . }}-keeper
+    app.kubernetes.io/instance: {{ .Release.Name }}-keeper
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.clickhouse.configmap.keeper.replicas }}
+  podManagementPolicy: {{ .Values.clickhouse.configmap.keeper.podManagementPolicy }}
+  updateStrategy:
+    type: {{ .Values.clickhouse.configmap.keeper.updateStrategy }}
+  serviceName: {{ include "clickhouse.fullname" . }}-keeper-headless
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "clickhouse.name" . }}-keeper
+      app.kubernetes.io/instance: {{ .Release.Name }}-keeper
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap-keeper.yaml") . | sha256sum }}
+      labels:
+        app.kubernetes.io/name: {{ include "clickhouse.name" . }}-keeper
+        app.kubernetes.io/instance: {{ .Release.Name }}-keeper
+    spec:
+    {{- with .Values.clickhouse.configmap.keeper.priorityClassName }}
+      priorityClassName: {{ . }}
+    {{- end }}
+    {{- with .Values.clickhouse.configmap.keeper.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- if .Values.affinity }}
+      affinity:
+{{ toYaml .Values.affinity | indent 8 }}
+    {{- end }}
+    {{- if .Values.tolerations }}
+      tolerations:
+{{ toYaml .Values.tolerations | indent 8 }}
+    {{- end }}
+    {{- if .Values.clickhouse.imagePullSecrets }}
+      imagePullSecrets:
+    {{- range .Values.clickhouse.imagePullSecrets }}
+      - name: {{ . | quote }}
+    {{- end }}
+    {{- end }}
+      initContainers:
+      - name: init-keeper-config
+        image: {{ .Values.clickhouse.configmap.keeper.image }}:{{ .Values.clickhouse.configmap.keeper.imageVersion | default .Chart.AppVersion }}
+        imagePullPolicy: {{ .Values.clickhouse.configmap.keeper.imagePullPolicy }}
+        command:
+          - /bin/bash
+          - -c
+          - |
+            # Extract server ID from pod ordinal (0-based to 1-based)
+            # HOSTNAME format: clickhouse-keeper-0, clickhouse-keeper-1, etc.
+            SERVER_ID=$((${HOSTNAME##*-} + 1))
+            # Create config directory if it doesn't exist
+            mkdir -p /etc/clickhouse-keeper/config.d
+            # Copy base config and replace server_id placeholder
+            cp /tmp/keeper_config.xml /etc/clickhouse-keeper/config.d/keeper_config.xml
+            sed -i "s/__SERVER_ID__/$SERVER_ID/g" /etc/clickhouse-keeper/config.d/keeper_config.xml
+        volumeMounts:
+        - name: {{ include "clickhouse.fullname" . }}-keeper-config
+          mountPath: /etc/clickhouse-keeper/config.d
+        - name: keeper-config-source
+          mountPath: /tmp
+      containers:
+      - name: {{ include "clickhouse.fullname" . }}-keeper
+        image: {{ .Values.clickhouse.configmap.keeper.image }}:{{ .Values.clickhouse.configmap.keeper.imageVersion | default .Chart.AppVersion }}
+        imagePullPolicy: {{ .Values.clickhouse.configmap.keeper.imagePullPolicy }}
+        command:
+          - /bin/bash
+          - -c
+          - |
+            set -e
+            echo "=== ClickHouse Keeper Startup ==="
+            
+            # Ensure directories exist
+            echo "Creating directories..."
+            mkdir -p {{ .Values.clickhouse.configmap.keeper.path }}/coordination/log
+            mkdir -p {{ .Values.clickhouse.configmap.keeper.path }}/coordination/snapshots
+            mkdir -p {{ .Values.clickhouse.configmap.keeper.log_path }}
+            
+            # Verify config file exists
+            CONFIG_FILE="/etc/clickhouse-keeper/config.d/keeper_config.xml"
+            if [ ! -f "$CONFIG_FILE" ]; then
+              echo "ERROR: Config file not found at $CONFIG_FILE"
+              ls -la /etc/clickhouse-keeper/config.d/ || true
+              exit 1
+            fi
+            
+            # Verify server_id was replaced
+            if grep -q "__SERVER_ID__" "$CONFIG_FILE"; then
+              echo "ERROR: Server ID placeholder not replaced in config!"
+              exit 1
+            fi
+            
+            # Check for clickhouse-keeper binary
+            if [ -f /usr/bin/clickhouse-keeper ]; then
+              KEEPER_BIN="/usr/bin/clickhouse-keeper"
+            elif [ -f /usr/local/bin/clickhouse-keeper ]; then
+              KEEPER_BIN="/usr/local/bin/clickhouse-keeper"
+            else
+              echo "ERROR: clickhouse-keeper binary not found in /usr/bin or /usr/local/bin"
+              echo "Searching for clickhouse binaries..."
+              find /usr -name "*clickhouse*" -type f 2>/dev/null | head -10 || true
+              exit 1
+            fi
+            
+            echo "Using binary: $KEEPER_BIN"
+            echo "Config file: $CONFIG_FILE"
+            echo "Starting clickhouse-keeper..."
+            exec $KEEPER_BIN --config-file="$CONFIG_FILE"
+        ports:
+        - name: client-port
+          containerPort: {{ .Values.clickhouse.configmap.keeper.client_port }}
+          protocol: TCP
+        - name: raft-port
+          containerPort: {{ .Values.clickhouse.configmap.keeper.raft_port }}
+          protocol: TCP
+        - name: metrics-port
+          containerPort: {{ .Values.clickhouse.configmap.keeper.metrics_port }}
+          protocol: TCP
+        {{- if .Values.clickhouse.configmap.keeper.startupProbe.enabled }}
+        startupProbe:
+          tcpSocket:
+            port: {{ .Values.clickhouse.configmap.keeper.client_port }}
+          initialDelaySeconds: {{ .Values.clickhouse.configmap.keeper.startupProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.clickhouse.configmap.keeper.startupProbe.periodSeconds }}
+          timeoutSeconds: {{ .Values.clickhouse.configmap.keeper.startupProbe.timeoutSeconds }}
+          failureThreshold: {{ .Values.clickhouse.configmap.keeper.startupProbe.failureThreshold }}
+          successThreshold: {{ .Values.clickhouse.configmap.keeper.startupProbe.successThreshold }}
+        {{- end }}
+        {{- if .Values.clickhouse.configmap.keeper.livenessProbe.enabled }}
+        livenessProbe:
+          tcpSocket:
+            port: {{ .Values.clickhouse.configmap.keeper.client_port }}
+          initialDelaySeconds: {{ .Values.clickhouse.configmap.keeper.livenessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.clickhouse.configmap.keeper.livenessProbe.periodSeconds }}
+          timeoutSeconds: {{ .Values.clickhouse.configmap.keeper.livenessProbe.timeoutSeconds }}
+          failureThreshold: {{ .Values.clickhouse.configmap.keeper.livenessProbe.failureThreshold }}
+          successThreshold: {{ .Values.clickhouse.configmap.keeper.livenessProbe.successThreshold }}
+        {{- end }}
+        {{- if .Values.clickhouse.configmap.keeper.readinessProbe.enabled }}
+        readinessProbe:
+          tcpSocket:
+            port: {{ .Values.clickhouse.configmap.keeper.client_port }}
+          initialDelaySeconds: {{ .Values.clickhouse.configmap.keeper.readinessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.clickhouse.configmap.keeper.readinessProbe.periodSeconds }}
+          timeoutSeconds: {{ .Values.clickhouse.configmap.keeper.readinessProbe.timeoutSeconds }}
+          failureThreshold: {{ .Values.clickhouse.configmap.keeper.readinessProbe.failureThreshold }}
+          successThreshold: {{ .Values.clickhouse.configmap.keeper.readinessProbe.successThreshold }}
+        {{- end }}
+        {{- if .Values.clickhouse.configmap.keeper.resources }}
+        resources:
+{{ toYaml .Values.clickhouse.configmap.keeper.resources | indent 10 }}
+        {{- end }}
+        volumeMounts:
+        - name: {{ include "clickhouse.fullname" . }}-keeper-data
+          mountPath: {{ .Values.clickhouse.configmap.keeper.path }}
+        - name: {{ include "clickhouse.fullname" . }}-keeper-logs
+          mountPath: {{ .Values.clickhouse.configmap.keeper.log_path }}
+        - name: {{ include "clickhouse.fullname" . }}-keeper-config
+          mountPath: /etc/clickhouse-keeper/config.d
+      {{- with .Values.clickhouse.configmap.keeper.securityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+      {{- end }}
+      {{- if .Values.clickhouse.configmap.keeper.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.clickhouse.configmap.keeper.nodeSelector | indent 8 }}
+      {{- end }}
+      volumes:
+      - name: {{ include "clickhouse.fullname" . }}-keeper-logs
+        emptyDir: {}
+      - name: {{ include "clickhouse.fullname" . }}-keeper-config
+        emptyDir: {}
+      - name: keeper-config-source
+        configMap:
+          name: {{ include "clickhouse.fullname" . }}-keeper
+          items:
+          - key: keeper_config.xml
+            path: keeper_config.xml
+      {{- if .Values.serviceAccount.enabled }}
+      serviceAccountName: {{ .Values.serviceAccount.name }}-keeper
+      {{- end }}
+{{- if .Values.clickhouse.configmap.keeper.persistentVolumeClaim.enabled }}
+  volumeClaimTemplates:
+{{- if .Values.clickhouse.configmap.keeper.persistentVolumeClaim.dataPersistentVolume.enabled }}
+  - metadata:
+      name: {{ include "clickhouse.fullname" . }}-keeper-data
+      labels:
+        app.kubernetes.io/name: {{ include "clickhouse.name" . }}-keeper-data
+        app.kubernetes.io/instance: {{ .Release.Name }}-keeper-data
+        app.kubernetes.io/managed-by: {{ .Release.Service }}
+    spec:
+      accessModes:
+    {{- range .Values.clickhouse.configmap.keeper.persistentVolumeClaim.dataPersistentVolume.accessModes }}
+      - {{ . | quote }}
+    {{- end }}
+    {{- if .Values.clickhouse.configmap.keeper.persistentVolumeClaim.dataPersistentVolume.storageClassName }}
+      storageClassName: {{ .Values.clickhouse.configmap.keeper.persistentVolumeClaim.dataPersistentVolume.storageClassName | quote }}
+    {{- end }}
+      resources:
+        requests:
+          storage: {{ .Values.clickhouse.configmap.keeper.persistentVolumeClaim.dataPersistentVolume.storage | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+

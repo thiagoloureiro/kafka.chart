@@ -1,0 +1,15 @@
+apiVersion: v1
+appVersion: "25.12"
+description: ClickHouse is an open-source column-oriented OLAP database (Online Analytical Processing) designed for very fast analytical queries on large volumes of data.
+home: https://github.com/thiagoloureiro/AlertHawk.Chart
+icon: https://clickhouse.yandex/images/logo.png
+keywords:
+  - clickhouse
+  - olap
+  - database
+name: clickhouse
+sources:
+  - https://github.com/thiagoloureiro/clickhouse.chart
+version: '25.21'
+maintainers:
+  - name: thiagoloureiro

@@ -1,0 +1,29 @@
+{{- if and .Values.clickhouse.configmap.enabled .Values.clickhouse.configmap.keeper.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "clickhouse.fullname" . }}-keeper
+  labels:
+    app.kubernetes.io/name: {{ include "clickhouse.name" . }}-keeper
+    app.kubernetes.io/instance: {{ .Release.Name }}-keeper
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  type: ClusterIP
+  ports:
+  - name: client-port
+    port: {{ .Values.clickhouse.configmap.keeper.client_port }}
+    targetPort: client-port
+    protocol: TCP
+  - name: raft-port
+    port: {{ .Values.clickhouse.configmap.keeper.raft_port }}
+    targetPort: raft-port
+    protocol: TCP
+  - name: metrics-port
+    port: {{ .Values.clickhouse.configmap.keeper.metrics_port }}
+    targetPort: metrics-port
+    protocol: TCP
+  selector:
+    app.kubernetes.io/name: {{ include "clickhouse.name" . }}-keeper
+    app.kubernetes.io/instance: {{ .Release.Name }}-keeper
+{{- end }}
+

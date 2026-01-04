@@ -1,0 +1,247 @@
+## Timezone
+timezone: "UTC"
+
+## Cluster domain
+clusterDomain: "cluster.local"
+
+##
+## Kafka Node selectors and tolerations for pod assignment
+## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector
+## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#taints-and-tolerations-beta-feature
+##
+# nodeSelector: {}
+# tolerations: []
+
+## Kafka pod/node affinity/anti-affinity
+##
+# affinity:
+#  nodeAffinity:
+#    requiredDuringSchedulingIgnoredDuringExecution:
+#      nodeSelectorTerms:
+#      - matchExpressions:
+#        - key: "application/kafka"
+#          operator: In
+#          values:
+#          - "true"
+
+serviceAccount:
+  # serviceAccount.annotations -- Additional Service Account annotations.
+  annotations: {}
+  # serviceAccount.enabled -- If `true`, a custom Service Account will be used.
+  enabled: false
+  # serviceAccount.name -- The name of the ServiceAccount to use.
+  name: "kafka"
+  # serviceAccount.automountServiceAccountToken -- Automount API credentials for a Service Account.
+  automountServiceAccountToken: true
+
+kafka:
+  ## StatefulSet controller supports relax its ordering guarantees while preserving its uniqueness and identity guarantees. There are two valid pod management policies: OrderedReady and Parallel
+  ## ref: https://kubernetes.io/docs/tutorials/stateful-application/basic-stateful-set/#pod-management-policy
+  ##
+  podManagementPolicy: "Parallel"
+
+  ## StatefulSet controller supports automated updates. There are two valid update strategies: RollingUpdate and OnDelete
+  ## ref: https://kubernetes.io/docs/tutorials/stateful-application/basic-stateful-set/#updating-statefulsets
+  ##
+  updateStrategy: "RollingUpdate"
+
+  ## Partition update strategy
+  ## https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#partitions
+  ##
+  # rollingUpdatePartition:
+
+  # pod Security Context
+  podSecurityContext: {}
+  #  fsGroup: 1001
+
+  # Security Context
+  securityContext: {}
+  #  runAsUser: 1001
+  #  runAsGroup: 1001
+
+  ## Additional Volumes
+  # volumes: []
+  # volumeMounts: []
+
+  ## Prometheus Exporter / Metrics
+  ##
+  metrics:
+    enabled: false
+    port: 9094
+
+    ## Metrics exporter pod Annotation and Labels
+    podAnnotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "9094"
+
+    ## Enable this if you're using https://github.com/coreos/prometheus-operator
+    serviceMonitor:
+      enabled: false
+
+      ## Optionally set a namespace, defaults to the charts namespace
+      # namespace: monitoring
+
+      # fallback to the prometheus default unless specified
+      # interval: 10s
+
+      selector:
+        prometheus: kube-prometheus
+
+    prometheusRule:
+      enabled: false
+      additionalLabels: {}
+      namespace: ""
+      rules: []
+
+    service:
+      type: ClusterIP
+      ## Use serviceLoadBalancerIP to request a specific static IP,
+      ## otherwise leave blank
+      # loadBalancerIP:
+      annotations: {}
+      labels: {}
+
+  ##
+  ## The path to the directory containing data.
+  ## Default value: /var/lib/kafka/data
+  path: "/var/lib/kafka/data"
+  ##
+  ## The port for client connections
+  client_port: "9092"
+  ##
+  ## The port for internal broker communication
+  internal_port: "9093"
+  ##
+  ## The instance number of Kafka brokers
+  ## IMPORTANT: This controls the number of pods in the Kafka StatefulSet
+  replicas: 3
+  ## Kafka image configuration.
+  image: "apache/kafka"
+  imageVersion: "4.1.1"
+  imagePullPolicy: "IfNotPresent"
+
+  priorityClassName: ~
+
+  ## The resource limits and requests used by kafka
+  resources: {}
+  #  limits:
+  #    cpu: 2000m
+  #    memory: 4Gi
+  #  requests:
+  #    cpu: 1000m
+  #    memory: 2Gi
+
+  startupProbe:
+    enabled: true
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 30
+    successThreshold: 1
+  livenessProbe:
+    enabled: true
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+    successThreshold: 1
+  ## Periodic probe of container service readiness. Container will be removed from service endpoints if the probe fails. Cannot be updated.
+  ## More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+    successThreshold: 1
+
+  ## volumeClaimTemplates is a list of claims that pods are allowed to reference.
+  ## The StatefulSet controller is responsible for mapping network identities to claims in a way that maintains the identity of a pod.
+  ## Every claim in this list must have at least one matching (by name) volumeMount in one container in the template.
+  ## A claim in this list takes precedence over any volumes in the template, with the same name.
+  persistentVolumeClaim:
+    enabled: true
+    ## Kafka data volume
+    dataPersistentVolume:
+      enabled: true
+      accessModes:
+      - "ReadWriteOnce"
+      storage: "100Gi"
+      # storageClassName: ""
+
+  ##
+  ## An API object that manages external access to the services in a cluster, typically HTTP.
+  ## Ingress can provide load balancing, SSL termination and name-based virtual hosting.
+  ingress:
+    enabled: false
+  #  host: "kafka.domain.com"
+  #  path: "/"
+  #  tls:
+  #    enabled: false
+  #    hosts:
+  #    - "kafka.domain.com"
+  #    secretName: "kafka-secret"
+
+  ##
+  ## Kafka server.properties configuration
+  configmap:
+    ##
+    ## If Configmap's enabled is `true`, Custom server.properties
+    enabled: true
+    ##
+    ## Kafka broker ID (will be set automatically based on pod ordinal)
+    broker_id: "auto"
+    ##
+    ## Number of network threads
+    num_network_threads: "8"
+    ##
+    ## Number of I/O threads
+    num_io_threads: "8"
+    ##
+    ## Socket send buffer
+    socket_send_buffer_bytes: "102400"
+    ##
+    ## Socket receive buffer
+    socket_receive_buffer_bytes: "102400"
+    ##
+    ## Socket request max bytes
+    socket_request_max_bytes: "104857600"
+    ##
+    ## Log directories
+    log_dirs: "/var/lib/kafka/data"
+    ##
+    ## Number of partitions per topic
+    num_partitions: "3"
+    ##
+    ## Number of threads per data directory
+    num_recovery_threads_per_data_dir: "1"
+    ##
+    ## Offsets topic replication factor
+    offsets_topic_replication_factor: "3"
+    ##
+    ## Transaction state log replication factor
+    transaction_state_log_replication_factor: "3"
+    ##
+    ## Transaction state log min ISR
+    transaction_state_log_min_isr: "2"
+    ##
+    ## Log retention hours
+    log_retention_hours: "168"
+    ##
+    ## Log segment bytes
+    log_segment_bytes: "1073741824"
+    ##
+    ## Log retention check interval
+    log_retention_check_interval_ms: "300000"
+    ##
+    ## Zookeeper connection string (if using external Zookeeper)
+    zookeeper_connect: ""
+    ##
+    ## Zookeeper connection timeout
+    zookeeper_connection_timeout_ms: "18000"
+    ##
+    ## Group initial rebalance delay
+    group_initial_rebalance_delay_ms: "0"
+    ##
+    ## Allows to override default Kafka config via override.properties
+    configOverride: ""
+

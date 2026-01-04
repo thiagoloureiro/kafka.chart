@@ -1,0 +1,58 @@
+{{- if and .Values.clickhouse.configmap.enabled .Values.clickhouse.configmap.keeper.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "clickhouse.fullname" . }}-keeper
+  labels:
+    app.kubernetes.io/name: {{ include "clickhouse.name" . }}-keeper
+    app.kubernetes.io/instance: {{ .Release.Name }}-keeper
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+data:
+  keeper_config.xml: |-
+    <?xml version="1.0"?>
+    <yandex>
+        <listen_host>0.0.0.0</listen_host>
+        <disable_ipv6>true</disable_ipv6>
+        <keeper_server>
+            <tcp_port>{{ .Values.clickhouse.configmap.keeper.client_port }}</tcp_port>
+            <server_id>__SERVER_ID__</server_id>
+            <log_storage_path>{{ .Values.clickhouse.configmap.keeper.path }}/coordination/log</log_storage_path>
+            <snapshot_storage_path>{{ .Values.clickhouse.configmap.keeper.path }}/coordination/snapshots</snapshot_storage_path>
+
+            <coordination_settings>
+                <operation_timeout_ms>{{ .Values.clickhouse.configmap.keeper.operation_timeout_ms }}</operation_timeout_ms>
+                <session_timeout_ms>{{ .Values.clickhouse.configmap.keeper.session_timeout_ms }}</session_timeout_ms>
+                <dead_session_check_period_ms>{{ .Values.clickhouse.configmap.keeper.dead_session_check_period_ms }}</dead_session_check_period_ms>
+                <heart_beat_interval_ms>{{ .Values.clickhouse.configmap.keeper.heart_beat_interval_ms }}</heart_beat_interval_ms>
+                <election_timeout_lower_bound_ms>{{ .Values.clickhouse.configmap.keeper.election_timeout_lower_bound_ms }}</election_timeout_lower_bound_ms>
+                <election_timeout_upper_bound_ms>{{ .Values.clickhouse.configmap.keeper.election_timeout_upper_bound_ms }}</election_timeout_upper_bound_ms>
+                <snapshots_to_keep>{{ .Values.clickhouse.configmap.keeper.snapshots_to_keep }}</snapshots_to_keep>
+                <stale_log_gap>{{ .Values.clickhouse.configmap.keeper.stale_log_gap }}</stale_log_gap>
+                <fresh_log_gap>{{ .Values.clickhouse.configmap.keeper.fresh_log_gap }}</fresh_log_gap>
+                <max_requests_batch_size>{{ .Values.clickhouse.configmap.keeper.max_requests_batch_size }}</max_requests_batch_size>
+                <quorum_reads>{{ .Values.clickhouse.configmap.keeper.quorum_reads }}</quorum_reads>
+                <force_sync>{{ .Values.clickhouse.configmap.keeper.force_sync }}</force_sync>
+            </coordination_settings>
+
+            <raft_configuration>
+                {{- range untilStep 0 (int .Values.clickhouse.configmap.keeper.replicas) 1 }}
+                <server>
+                    <id>{{ add . 1 }}</id>
+                    <hostname>{{ include "clickhouse.fullname" $ }}-keeper-{{ . }}.{{ include "clickhouse.fullname" $ }}-keeper-headless.{{ $.Release.Namespace }}.svc.{{ $.Values.clusterDomain }}</hostname>
+                    <port>{{ $.Values.clickhouse.configmap.keeper.raft_port }}</port>
+                </server>
+                {{- end }}
+            </raft_configuration>
+        </keeper_server>
+
+        <logger>
+            <level>{{ .Values.clickhouse.configmap.logger.level | default "information" }}</level>
+            <log>{{ printf "%s/%s" .Values.clickhouse.configmap.keeper.log_path "clickhouse-keeper.log" }}</log>
+            <errorlog>{{ printf "%s/%s" .Values.clickhouse.configmap.keeper.log_path "clickhouse-keeper.err.log" }}</errorlog>
+            <size>{{ .Values.clickhouse.configmap.logger.size | default "1000M" }}</size>
+            <count>{{ .Values.clickhouse.configmap.keeper.logs_to_keep }}</count>
+            <console>1</console>
+        </logger>
+    </yandex>
+{{- end }}
+

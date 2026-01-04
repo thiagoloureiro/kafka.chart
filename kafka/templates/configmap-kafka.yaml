@@ -1,0 +1,102 @@
+{{- if .Values.kafka.configmap.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "kafka.fullname" . }}-config
+  labels:
+    app.kubernetes.io/name: {{ include "kafka.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+data:
+  server.properties: |
+    # Broker ID (set automatically from pod ordinal)
+    broker.id=${KAFKA_BROKER_ID}
+    
+    # Network threads
+    num.network.threads={{ .Values.kafka.configmap.num_network_threads }}
+    
+    # I/O threads
+    num.io.threads={{ .Values.kafka.configmap.num_io_threads }}
+    
+    # Socket send buffer
+    socket.send.buffer.bytes={{ .Values.kafka.configmap.socket_send_buffer_bytes }}
+    
+    # Socket receive buffer
+    socket.receive.buffer.bytes={{ .Values.kafka.configmap.socket_receive_buffer_bytes }}
+    
+    # Socket request max bytes
+    socket.request.max.bytes={{ .Values.kafka.configmap.socket_request_max_bytes }}
+    
+    # Log directories
+    log.dirs=${KAFKA_LOG_DIRS}
+    
+    # Number of partitions per topic
+    num.partitions=${KAFKA_NUM_PARTITIONS}
+    
+    # Number of threads per data directory
+    num.recovery.threads.per.data.dir={{ .Values.kafka.configmap.num_recovery_threads_per_data_dir }}
+    
+    # Offsets topic replication factor
+    offsets.topic.replication.factor=${KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR}
+    
+    # Transaction state log replication factor
+    transaction.state.log.replication.factor=${KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR}
+    
+    # Transaction state log min ISR
+    transaction.state.log.min.isr=${KAFKA_TRANSACTION_STATE_LOG_MIN_ISR}
+    
+    # Log retention hours
+    log.retention.hours=${KAFKA_LOG_RETENTION_HOURS}
+    
+    # Log segment bytes
+    log.segment.bytes=${KAFKA_LOG_SEGMENT_BYTES}
+    
+    # Log retention check interval
+    log.retention.check.interval.ms={{ .Values.kafka.configmap.log_retention_check_interval_ms }}
+    
+    # Listeners
+    listeners=${KAFKA_LISTENERS}
+    
+    # Advertised listeners
+    advertised.listeners=${KAFKA_ADVERTISED_LISTENERS}
+    
+    # Listener security protocol map
+    listener.security.protocol.map=PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+    
+    # Inter broker listener name
+    inter.broker.listener.name=PLAINTEXT_INTERNAL
+    
+    {{- if .Values.kafka.configmap.zookeeper_connect }}
+    # Zookeeper connection
+    zookeeper.connect={{ .Values.kafka.configmap.zookeeper_connect }}
+    
+    # Zookeeper connection timeout
+    zookeeper.connection.timeout.ms={{ .Values.kafka.configmap.zookeeper_connection_timeout_ms }}
+    {{- end }}
+    
+    # Group initial rebalance delay
+    group.initial.rebalance.delay.ms={{ .Values.kafka.configmap.group_initial_rebalance_delay_ms }}
+    
+    # Auto create topics
+    auto.create.topics.enable=true
+    
+    # Delete topic enable
+    delete.topic.enable=true
+    
+    # Log flush interval messages
+    log.flush.interval.messages=10000
+    
+    # Log flush interval ms
+    log.flush.interval.ms=1000
+    
+    # Log cleanup policy
+    log.cleanup.policy=delete
+    
+    # Compression type
+    compression.type=producer
+  {{- if .Values.kafka.configmap.configOverride }}
+  override.properties: |
+{{ .Values.kafka.configmap.configOverride | indent 4 }}
+  {{- end }}
+{{- end }}
+

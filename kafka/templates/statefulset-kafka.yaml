@@ -1,0 +1,211 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "kafka.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "kafka.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.kafka.replicas | int }}
+  podManagementPolicy: {{ .Values.kafka.podManagementPolicy }}
+  updateStrategy:
+    type: {{ .Values.kafka.updateStrategy }}
+    {{- if (eq "Recreate" .Values.kafka.updateStrategy) }}
+    rollingUpdate: null
+    {{- else if .Values.kafka.rollingUpdatePartition }}
+    rollingUpdate:
+      partition: {{ .Values.kafka.rollingUpdatePartition }}
+    {{- end }}
+  serviceName: {{ include "kafka.fullname" . }}-headless
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "kafka.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap-kafka.yaml") . | sha256sum }}
+      {{- if and .Values.kafka.metrics.enabled .Values.kafka.metrics.podAnnotations }}
+      {{- toYaml .Values.kafka.metrics.podAnnotations | nindent 8 }}
+      {{- end }}
+      {{- if .Values.kafka.podAnnotations }}
+      {{- range $key, $value := .Values.kafka.podAnnotations }}
+        {{ $key }}: {{ $value | quote }}
+      {{- end }}
+      {{- end }}
+      labels:
+        app.kubernetes.io/name: {{ include "kafka.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+      {{- if and .Values.kafka.metrics.enabled .Values.kafka.metrics.podLabels }}
+      {{- toYaml .Values.kafka.metrics.podLabels | nindent 8 }}
+      {{- end }}
+      {{- if .Values.kafka.podLabels }}
+      {{- range $key, $value := .Values.kafka.podLabels }}
+        {{ $key }}: {{ $value | quote }}
+      {{- end }}
+      {{- end }}
+    spec:
+    {{- with .Values.kafka.priorityClassName }}
+      priorityClassName: {{ . }}
+    {{- end }}
+    {{- with .Values.kafka.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- if .Values.affinity }}
+      affinity:
+{{ toYaml .Values.affinity | indent 8 }}
+    {{- end }}
+    {{- if .Values.tolerations }}
+      tolerations:
+{{ toYaml .Values.tolerations | indent 8 }}
+    {{- end }}
+    {{- if .Values.kafka.imagePullSecrets }}
+      imagePullSecrets:
+    {{- range .Values.kafka.imagePullSecrets }}
+      - name: {{ . | quote }}
+    {{- end }}
+    {{- end }}
+      containers:
+      - name: {{ include "kafka.fullname" . }}
+        image: {{ .Values.kafka.image }}:{{ .Values.kafka.imageVersion | default .Chart.AppVersion }}
+        imagePullPolicy: {{ .Values.kafka.imagePullPolicy }}
+        command:
+          - /bin/bash
+          - -c
+          - |
+            export POD_ORDINAL=${HOSTNAME##*-}
+            export BROKER_ID=${POD_ORDINAL}
+            # Substitute POD_ORDINAL in server.properties
+            sed -i "s/\${POD_ORDINAL}/${POD_ORDINAL}/g" /opt/kafka/config/server.properties
+            sed -i "s/\${KAFKA_BROKER_ID}/${BROKER_ID}/g" /opt/kafka/config/server.properties
+            sed -i "s|\${KAFKA_ADVERTISED_LISTENERS}|PLAINTEXT://{{ include "kafka.fullname" . }}-${POD_ORDINAL}.{{ include "kafka.fullname" . }}-headless.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}:{{ .Values.kafka.client_port }},PLAINTEXT_INTERNAL://{{ include "kafka.fullname" . }}-${POD_ORDINAL}.{{ include "kafka.fullname" . }}-headless.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}:{{ .Values.kafka.internal_port }}|g" /opt/kafka/config/server.properties
+            sed -i "s|\${KAFKA_LISTENERS}|{{ include "kafka.listeners" . }}|g" /opt/kafka/config/server.properties
+            sed -i "s/\${KAFKA_LOG_DIRS}/{{ include "kafka.fullpath" . }}/g" /opt/kafka/config/server.properties
+            sed -i "s/\${KAFKA_NUM_PARTITIONS}/{{ .Values.kafka.configmap.num_partitions }}/g" /opt/kafka/config/server.properties
+            sed -i "s/\${KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR}/{{ .Values.kafka.configmap.offsets_topic_replication_factor }}/g" /opt/kafka/config/server.properties
+            sed -i "s/\${KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR}/{{ .Values.kafka.configmap.transaction_state_log_replication_factor }}/g" /opt/kafka/config/server.properties
+            sed -i "s/\${KAFKA_TRANSACTION_STATE_LOG_MIN_ISR}/{{ .Values.kafka.configmap.transaction_state_log_min_isr }}/g" /opt/kafka/config/server.properties
+            sed -i "s/\${KAFKA_LOG_RETENTION_HOURS}/{{ .Values.kafka.configmap.log_retention_hours }}/g" /opt/kafka/config/server.properties
+            sed -i "s/\${KAFKA_LOG_SEGMENT_BYTES}/{{ .Values.kafka.configmap.log_segment_bytes }}/g" /opt/kafka/config/server.properties
+            /opt/kafka/bin/kafka-server-start.sh /opt/kafka/config/server.properties
+        env:
+        - name: POD_ORDINAL
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: KAFKA_BROKER_ID
+          value: "${HOSTNAME##*-}"
+        ports:
+        - name: client-port
+          containerPort: {{ .Values.kafka.client_port | int }}
+          protocol: TCP
+        - name: internal-port
+          containerPort: {{ .Values.kafka.internal_port | int }}
+          protocol: TCP
+        {{- if .Values.kafka.metrics.enabled }}
+        - name: metrics
+          containerPort: {{ .Values.kafka.metrics.port }}
+          protocol: TCP
+        {{- end }}
+      {{- if .Values.kafka.startupProbe.enabled }}
+        startupProbe:
+          tcpSocket:
+            port: client-port
+          periodSeconds: {{ .Values.kafka.startupProbe.periodSeconds }}
+          timeoutSeconds: {{ .Values.kafka.startupProbe.timeoutSeconds }}
+          failureThreshold: {{ .Values.kafka.startupProbe.failureThreshold }}
+          successThreshold: {{ .Values.kafka.startupProbe.successThreshold }}
+      {{- end }}
+      {{- if .Values.kafka.livenessProbe.enabled }}
+        livenessProbe:
+          tcpSocket:
+            port: client-port
+          initialDelaySeconds: {{ .Values.kafka.livenessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.kafka.livenessProbe.periodSeconds }}
+          timeoutSeconds: {{ .Values.kafka.livenessProbe.timeoutSeconds }}
+          failureThreshold: {{ .Values.kafka.livenessProbe.failureThreshold }}
+          successThreshold: {{ .Values.kafka.livenessProbe.successThreshold }}
+      {{- end }}
+      {{- if .Values.kafka.readinessProbe.enabled }}
+        readinessProbe:
+          tcpSocket:
+            port: client-port
+          initialDelaySeconds: {{ .Values.kafka.readinessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.kafka.readinessProbe.periodSeconds }}
+          timeoutSeconds: {{ .Values.kafka.readinessProbe.timeoutSeconds }}
+          failureThreshold: {{ .Values.kafka.readinessProbe.failureThreshold }}
+          successThreshold: {{ .Values.kafka.readinessProbe.successThreshold }}
+      {{- end }}
+      {{- if .Values.kafka.resources }}
+        resources:
+{{ toYaml .Values.kafka.resources | indent 10 }}
+      {{- end }}
+        volumeMounts:
+        - name: {{ include "kafka.fullname" . }}-data
+          mountPath: {{ include "kafka.fullpath" . }}
+        {{- if .Values.kafka.configmap.enabled }}
+        - name: {{ include "kafka.fullname" . }}-config
+          mountPath: /opt/kafka/config
+        {{- end }}
+{{- if .Values.kafka.volumeMounts }}
+{{ toYaml .Values.kafka.volumeMounts | indent 8 }}
+{{- end }}
+      {{- with .Values.kafka.securityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+      {{- end }}
+    {{- if .Values.kafka.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.kafka.nodeSelector | indent 8 }}
+    {{- end }}
+      volumes:
+      - name: {{ include "kafka.fullname" . }}-data
+      {{- if .Values.kafka.persistentVolumeClaim.dataPersistentVolume.enabled }}
+        persistentVolumeClaim:
+          claimName: {{ include "kafka.fullname" . }}-data
+      {{- else }}
+        emptyDir: {}
+      {{- end }}
+      {{- if .Values.kafka.configmap.enabled }}
+      - name: {{ include "kafka.fullname" . }}-config
+        configMap:
+          name: {{ include "kafka.fullname" . }}-config
+          items:
+          - key: server.properties
+            path: server.properties
+          {{- if .Values.kafka.configmap.configOverride }}
+          - key: override.properties
+            path: override.properties
+          {{- end }}
+      {{- end }}
+{{- if .Values.kafka.volumes }}
+{{ toYaml .Values.kafka.volumes | indent 6 }}
+{{- end }}
+      {{- if .Values.serviceAccount.enabled }}
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      {{- end }}
+{{- if .Values.kafka.persistentVolumeClaim.enabled }}
+  volumeClaimTemplates:
+{{- if .Values.kafka.persistentVolumeClaim.dataPersistentVolume.enabled }}
+  - metadata:
+      name: {{ include "kafka.fullname" . }}-data
+      labels:
+        app.kubernetes.io/name: {{ include "kafka.name" . }}-data
+        app.kubernetes.io/instance: {{ .Release.Name }}-data
+        app.kubernetes.io/managed-by: {{ .Release.Service }}
+    spec:
+      accessModes:
+    {{- range .Values.kafka.persistentVolumeClaim.dataPersistentVolume.accessModes }}
+      - {{ . | quote }}
+    {{- end }}
+    {{- if .Values.kafka.persistentVolumeClaim.dataPersistentVolume.storageClassName }}
+      storageClassName: {{ .Values.kafka.persistentVolumeClaim.dataPersistentVolume.storageClassName | quote }}
+    {{- end }}
+      resources:
+        requests:
+          storage: {{ .Values.kafka.persistentVolumeClaim.dataPersistentVolume.storage | quote }}
+{{- end }}
+{{- end }}
+
