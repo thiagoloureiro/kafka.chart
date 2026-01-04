@@ -138,8 +138,35 @@ spec:
           successThreshold: {{ .Values.kafka.readinessProbe.successThreshold }}
       {{- end }}
       {{- if .Values.kafka.resources }}
+        {{- $resources := dict }}
+        {{- if .Values.kafka.resources.limits }}
+          {{- $limits := dict }}
+          {{- if and .Values.kafka.resources.limits.cpu (ne .Values.kafka.resources.limits.cpu "") }}
+            {{- $_ := set $limits "cpu" .Values.kafka.resources.limits.cpu }}
+          {{- end }}
+          {{- if and .Values.kafka.resources.limits.memory (ne .Values.kafka.resources.limits.memory "") }}
+            {{- $_ := set $limits "memory" .Values.kafka.resources.limits.memory }}
+          {{- end }}
+          {{- if $limits }}
+            {{- $_ := set $resources "limits" $limits }}
+          {{- end }}
+        {{- end }}
+        {{- if .Values.kafka.resources.requests }}
+          {{- $requests := dict }}
+          {{- if and .Values.kafka.resources.requests.cpu (ne .Values.kafka.resources.requests.cpu "") }}
+            {{- $_ := set $requests "cpu" .Values.kafka.resources.requests.cpu }}
+          {{- end }}
+          {{- if and .Values.kafka.resources.requests.memory (ne .Values.kafka.resources.requests.memory "") }}
+            {{- $_ := set $requests "memory" .Values.kafka.resources.requests.memory }}
+          {{- end }}
+          {{- if $requests }}
+            {{- $_ := set $resources "requests" $requests }}
+          {{- end }}
+        {{- end }}
+        {{- if $resources }}
         resources:
-{{ toYaml .Values.kafka.resources | indent 10 }}
+{{ toYaml $resources | indent 10 }}
+        {{- end }}
       {{- end }}
         volumeMounts:
         - name: {{ include "kafka.fullname" . }}-data
