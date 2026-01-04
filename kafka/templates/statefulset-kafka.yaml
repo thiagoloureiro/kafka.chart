@@ -84,12 +84,12 @@ spec:
             # Use a writable location since /opt/kafka/logs might not be writable
             export KAFKA_LOG_DIR=/tmp/kafka-logs
             mkdir -p "${KAFKA_LOG_DIR}"
-            # Create symlink from /opt/kafka/logs to writable directory
-            # This allows the startup script to write to /opt/kafka/logs while actually using /tmp/kafka-logs
-            mkdir -p /opt/kafka 2>/dev/null || true
-            ln -sfn "${KAFKA_LOG_DIR}" /opt/kafka/logs 2>/dev/null || true
-            # Also set environment variables as backup
-            export KAFKA_JVM_PERFORMANCE_OPTS="-Xlog:gc*:file=${KAFKA_LOG_DIR}/kafkaServer-gc.log:time,tags:filecount=10,filesize=100M"
+            # Patch the startup script to use writable log directory
+            # The script hardcodes /opt/kafka/bin/../logs, so we need to replace it
+            cp /opt/kafka/bin/kafka-server-start.sh /tmp/kafka-server-start.sh
+            sed -i "s|/opt/kafka/bin/../logs|${KAFKA_LOG_DIR}|g" /tmp/kafka-server-start.sh
+            sed -i "s|/opt/kafka/logs|${KAFKA_LOG_DIR}|g" /tmp/kafka-server-start.sh
+            chmod +x /tmp/kafka-server-start.sh
             # Copy config to writable location and substitute variables
             cp /opt/kafka/config/server.properties /tmp/server.properties
             sed -i "s/\${POD_ORDINAL}/${POD_ORDINAL}/g" /tmp/server.properties
@@ -118,9 +118,9 @@ spec:
               echo "Storage already formatted, skipping format step"
             fi
             {{- end }}
-            # Start Kafka (redirect logs to writable location if needed)
+            # Start Kafka using patched startup script (redirect logs to writable location)
             export KAFKA_LOG4J_OPTS="-Dkafka.logs.dir=${KAFKA_LOG_DIR}"
-            /opt/kafka/bin/kafka-server-start.sh /tmp/server.properties
+            /tmp/kafka-server-start.sh /tmp/server.properties
         env:
         - name: POD_ORDINAL
           valueFrom:
