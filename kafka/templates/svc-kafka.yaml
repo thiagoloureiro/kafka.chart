@@ -25,5 +25,16 @@ spec:
   selector:
     app.kubernetes.io/name: {{ include "kafka.name" . }}
     app.kubernetes.io/instance: {{ .Release.Name }}
-  type: ClusterIP
+  type: {{ .Values.kafka.service.type }}
+  {{- if .Values.kafka.service.annotations }}
+  annotations:
+    {{- toYaml .Values.kafka.service.annotations | nindent 4 }}
+  {{- end }}
+  {{- if .Values.kafka.service.labels }}
+  labels:
+    {{- toYaml .Values.kafka.service.labels | nindent 4 }}
+  {{- end }}
+  {{- if and (eq .Values.kafka.service.type "LoadBalancer") .Values.kafka.service.loadBalancerIP }}
+  loadBalancerIP: {{ .Values.kafka.service.loadBalancerIP }}
+  {{- end }}
 
