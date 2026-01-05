@@ -275,9 +275,9 @@ spec:
       {{- if .Values.serviceAccount.enabled }}
       serviceAccountName: {{ .Values.serviceAccount.name }}
       {{- end }}
-{{- if .Values.kafka.persistentVolumeClaim.enabled }}
+  {{- if .Values.kafka.persistentVolumeClaim.enabled }}
   volumeClaimTemplates:
-{{- if .Values.kafka.persistentVolumeClaim.dataPersistentVolume.enabled }}
+  {{- if .Values.kafka.persistentVolumeClaim.dataPersistentVolume.enabled }}
   - metadata:
       name: {{ include "kafka.fullname" . }}-data
       labels:
@@ -286,15 +286,15 @@ spec:
         app.kubernetes.io/managed-by: {{ .Release.Service }}
     spec:
       accessModes:
-    {{- range .Values.kafka.persistentVolumeClaim.dataPersistentVolume.accessModes }}
+      {{- range .Values.kafka.persistentVolumeClaim.dataPersistentVolume.accessModes }}
       - {{ . | quote }}
-    {{- end }}
-    {{- if .Values.kafka.persistentVolumeClaim.dataPersistentVolume.storageClassName }}
+      {{- end }}
+      {{- if .Values.kafka.persistentVolumeClaim.dataPersistentVolume.storageClassName }}
       storageClassName: {{ .Values.kafka.persistentVolumeClaim.dataPersistentVolume.storageClassName | quote }}
-    {{- end }}
+      {{- end }}
       resources:
         requests:
           storage: {{ .Values.kafka.persistentVolumeClaim.dataPersistentVolume.storage | quote }}
-{{- end }}
-{{- end }}
+  {{- end }}
+  {{- end }}
 
