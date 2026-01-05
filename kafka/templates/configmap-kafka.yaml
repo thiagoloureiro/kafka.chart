@@ -21,6 +21,9 @@ data:
     # Using controller listener port for quorum communication
     # Note: IDs must match broker.id values (0, 1, 2, ...)
     controller.quorum.voters={{- range $i := until (.Values.kafka.replicas | int) }}{{ if $i }},{{ end }}{{ $i }}@{{ include "kafka.fullname" $ }}-{{ $i }}.{{ include "kafka.fullname" $ }}-headless.{{ $.Release.Namespace }}.svc.{{ $.Values.clusterDomain }}:{{ $.Values.kafka.configmap.controller_listener_port | default "9094" }}{{ end }}
+    # Controller quorum bootstrap servers (for initial cluster formation)
+    # This helps new brokers discover the quorum
+    controller.quorum.bootstrap.servers={{- range $i := until (.Values.kafka.replicas | int) }}{{ if $i }},{{ end }}{{ include "kafka.fullname" $ }}-{{ $i }}.{{ include "kafka.fullname" $ }}-headless.{{ $.Release.Namespace }}.svc.{{ $.Values.clusterDomain }}:{{ $.Values.kafka.configmap.controller_listener_port | default "9094" }}{{ end }}
     # Controller listener names
     controller.listener.names=CONTROLLER
     # Listener for controller-to-controller communication
