@@ -174,8 +174,14 @@ spec:
             sed -i "s|\${KAFKA_LOG_RETENTION_HOURS}|{{ .Values.kafka.configmap.log_retention_hours }}|g" /tmp/server.properties
             sed -i "s|\${KAFKA_LOG_SEGMENT_BYTES}|{{ .Values.kafka.configmap.log_segment_bytes }}|g" /tmp/server.properties
             {{- if not .Values.kafka.configmap.zookeeper_connect }}
-            # For non-broker-0 pods, wait a bit to ensure broker 0 has time to initialize
-            if [ "$BROKER_ID" != "0" ]; then
+            # In KRaft combined mode, the controller needs time to initialize before broker registration
+            # For broker 0, wait a bit to ensure the controller component is ready
+            if [ "$BROKER_ID" = "0" ]; then
+              echo "Broker 0: Waiting for controller component to initialize..."
+              # Give the controller time to start and be ready to accept broker registration
+              sleep 10
+              echo "Broker 0: Starting Kafka (controller should be ready)..."
+            else
               echo "Waiting for broker 0 to initialize before starting broker $BROKER_ID..."
               # Give broker 0 time to start and form the initial quorum
               # With OrderedReady, broker 0 should be running, but may still be initializing
@@ -199,6 +205,11 @@ spec:
         - name: internal-port
           containerPort: {{ .Values.kafka.internal_port | int }}
           protocol: TCP
+        {{- if not .Values.kafka.configmap.zookeeper_connect }}
+        - name: controller-port
+          containerPort: {{ .Values.kafka.configmap.controller_listener_port | default "9094" | int }}
+          protocol: TCP
+        {{- end }}
         {{- if .Values.kafka.metrics.enabled }}
         - name: metrics
           containerPort: {{ .Values.kafka.metrics.port }}

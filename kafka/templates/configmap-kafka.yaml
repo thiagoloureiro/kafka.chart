@@ -46,9 +46,11 @@ data:
     # Metadata log max snapshot interval (helps with initial cluster formation)
     metadata.log.max.snapshot.interval.ms=3600000
     # Broker registration timeout (increased for initial cluster formation)
-    broker.registration.timeout.ms=60000
+    broker.registration.timeout.ms=120000
     # Broker heartbeat interval
     broker.heartbeat.interval.ms=2000
+    # Controller quorum append linger ms (helps with initial cluster formation)
+    controller.quorum.append.linger.ms=25
     {{- else }}
     # Listeners (ZooKeeper mode)
     listeners=${KAFKA_LISTENERS}

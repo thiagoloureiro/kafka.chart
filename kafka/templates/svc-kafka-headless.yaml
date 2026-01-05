@@ -18,6 +18,12 @@ spec:
     targetPort: internal-port
     protocol: TCP
     name: internal-port
+  {{- if not .Values.kafka.configmap.zookeeper_connect }}
+  - port: {{ .Values.kafka.configmap.controller_listener_port | default "9094" | int }}
+    targetPort: controller-port
+    protocol: TCP
+    name: controller-port
+  {{- end }}
   {{- if .Values.kafka.metrics.enabled }}
   - port: {{ .Values.kafka.metrics.port }}
     targetPort: metrics
