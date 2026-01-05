@@ -8,6 +8,7 @@ metadata:
     app.kubernetes.io/managed-by: {{ .Release.Service }}
 spec:
   clusterIP: "None"
+  sessionAffinity: None
   ports:
   - port: {{ .Values.kafka.client_port | int }}
     targetPort: client-port

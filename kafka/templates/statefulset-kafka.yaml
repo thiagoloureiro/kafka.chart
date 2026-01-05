@@ -122,7 +122,6 @@ spec:
         securityContext:
           runAsUser: 1001
           runAsGroup: 1001
-          fsGroup: 1001
         volumeMounts:
         - name: {{ include "kafka.fullname" . }}-data
           mountPath: {{ include "kafka.fullpath" . }}
@@ -209,6 +208,9 @@ spec:
         startupProbe:
           tcpSocket:
             port: client-port
+          {{- if .Values.kafka.startupProbe.initialDelaySeconds }}
+          initialDelaySeconds: {{ .Values.kafka.startupProbe.initialDelaySeconds }}
+          {{- end }}
           periodSeconds: {{ .Values.kafka.startupProbe.periodSeconds }}
           timeoutSeconds: {{ .Values.kafka.startupProbe.timeoutSeconds }}
           failureThreshold: {{ .Values.kafka.startupProbe.failureThreshold }}
