@@ -132,14 +132,14 @@ kafka:
   #    memory: 2Gi
 
   startupProbe:
-    enabled: true
+    enabled: false
     initialDelaySeconds: 60
     periodSeconds: 10
     timeoutSeconds: 5
     failureThreshold: 60
     successThreshold: 1
   livenessProbe:
-    enabled: true
+    enabled: false
     initialDelaySeconds: 30
     periodSeconds: 10
     timeoutSeconds: 5
@@ -148,7 +148,7 @@ kafka:
   ## Periodic probe of container service readiness. Container will be removed from service endpoints if the probe fails. Cannot be updated.
   ## More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes
   readinessProbe:
-    enabled: true
+    enabled: false
     initialDelaySeconds: 60
     periodSeconds: 10
     timeoutSeconds: 5

@@ -226,38 +226,39 @@ spec:
           containerPort: {{ .Values.kafka.metrics.port }}
           protocol: TCP
         {{- end }}
-      {{- if .Values.kafka.startupProbe.enabled }}
-        startupProbe:
-          tcpSocket:
-            port: client-port
-          {{- if .Values.kafka.startupProbe.initialDelaySeconds }}
-          initialDelaySeconds: {{ .Values.kafka.startupProbe.initialDelaySeconds }}
-          {{- end }}
-          periodSeconds: {{ .Values.kafka.startupProbe.periodSeconds }}
-          timeoutSeconds: {{ .Values.kafka.startupProbe.timeoutSeconds }}
-          failureThreshold: {{ .Values.kafka.startupProbe.failureThreshold }}
-          successThreshold: {{ .Values.kafka.startupProbe.successThreshold }}
-      {{- end }}
-      {{- if .Values.kafka.livenessProbe.enabled }}
-        livenessProbe:
-          tcpSocket:
-            port: client-port
-          initialDelaySeconds: {{ .Values.kafka.livenessProbe.initialDelaySeconds }}
-          periodSeconds: {{ .Values.kafka.livenessProbe.periodSeconds }}
-          timeoutSeconds: {{ .Values.kafka.livenessProbe.timeoutSeconds }}
-          failureThreshold: {{ .Values.kafka.livenessProbe.failureThreshold }}
-          successThreshold: {{ .Values.kafka.livenessProbe.successThreshold }}
-      {{- end }}
-      {{- if .Values.kafka.readinessProbe.enabled }}
-        readinessProbe:
-          tcpSocket:
-            port: client-port
-          initialDelaySeconds: {{ .Values.kafka.readinessProbe.initialDelaySeconds }}
-          periodSeconds: {{ .Values.kafka.readinessProbe.periodSeconds }}
-          timeoutSeconds: {{ .Values.kafka.readinessProbe.timeoutSeconds }}
-          failureThreshold: {{ .Values.kafka.readinessProbe.failureThreshold }}
-          successThreshold: {{ .Values.kafka.readinessProbe.successThreshold }}
-      {{- end }}
+      # Probes disabled for debugging - will be re-enabled later
+      # {{- if .Values.kafka.startupProbe.enabled }}
+      #   startupProbe:
+      #     tcpSocket:
+      #       port: client-port
+      #     {{- if .Values.kafka.startupProbe.initialDelaySeconds }}
+      #     initialDelaySeconds: {{ .Values.kafka.startupProbe.initialDelaySeconds }}
+      #     {{- end }}
+      #     periodSeconds: {{ .Values.kafka.startupProbe.periodSeconds }}
+      #     timeoutSeconds: {{ .Values.kafka.startupProbe.timeoutSeconds }}
+      #     failureThreshold: {{ .Values.kafka.startupProbe.failureThreshold }}
+      #     successThreshold: {{ .Values.kafka.startupProbe.successThreshold }}
+      # {{- end }}
+      # {{- if .Values.kafka.livenessProbe.enabled }}
+      #   livenessProbe:
+      #     tcpSocket:
+      #       port: client-port
+      #     initialDelaySeconds: {{ .Values.kafka.livenessProbe.initialDelaySeconds }}
+      #     periodSeconds: {{ .Values.kafka.livenessProbe.periodSeconds }}
+      #     timeoutSeconds: {{ .Values.kafka.livenessProbe.timeoutSeconds }}
+      #     failureThreshold: {{ .Values.kafka.livenessProbe.failureThreshold }}
+      #     successThreshold: {{ .Values.kafka.livenessProbe.successThreshold }}
+      # {{- end }}
+      # {{- if .Values.kafka.readinessProbe.enabled }}
+      #   readinessProbe:
+      #     tcpSocket:
+      #       port: client-port
+      #     initialDelaySeconds: {{ .Values.kafka.readinessProbe.initialDelaySeconds }}
+      #     periodSeconds: {{ .Values.kafka.readinessProbe.periodSeconds }}
+      #     timeoutSeconds: {{ .Values.kafka.readinessProbe.timeoutSeconds }}
+      #     failureThreshold: {{ .Values.kafka.readinessProbe.failureThreshold }}
+      #     successThreshold: {{ .Values.kafka.readinessProbe.successThreshold }}
+      # {{- end }}
       {{- if .Values.kafka.resources }}
         {{- $resources := dict }}
         {{- if .Values.kafka.resources.limits }}
