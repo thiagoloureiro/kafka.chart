@@ -131,7 +131,18 @@ spec:
                 # Generate cluster ID from release name (deterministic, same for all pods)
                 CLUSTER_ID=$(echo -n "{{ .Release.Name }}-{{ .Release.Namespace }}" | sha256sum | cut -d' ' -f1 | cut -c1-16)
               fi
-              /opt/kafka/bin/kafka-storage.sh format -t "$CLUSTER_ID" -c /tmp/server.properties --ignore-formatted
+              # Create a minimal config for storage formatting that includes this node in voters
+              # The storage tool validates that controller nodes must be in the voters list
+              cat > /tmp/storage-format.properties <<EOF
+broker.id=${BROKER_ID}
+node.id=${BROKER_ID}
+process.roles=broker,controller
+controller.listener.names=CONTROLLER
+listeners=CONTROLLER://0.0.0.0:{{ .Values.kafka.configmap.controller_listener_port | default "9094" }}
+log.dirs=${LOG_DIRS}
+controller.quorum.voters={{- range $i := until (.Values.kafka.replicas | int) }}{{ if $i }},{{ end }}{{ $i }}@{{ include "kafka.fullname" $ }}-{{ $i }}.{{ include "kafka.fullname" $ }}-headless.{{ $.Release.Namespace }}.svc.{{ $.Values.clusterDomain }}:{{ $.Values.kafka.configmap.controller_listener_port | default "9094" }}{{ end }}
+EOF
+              /opt/kafka/bin/kafka-storage.sh format -t "$CLUSTER_ID" -c /tmp/storage-format.properties --ignore-formatted
               echo "Storage formatted with cluster ID: $CLUSTER_ID for node ID: $BROKER_ID"
             else
               echo "Storage already formatted, skipping format step"
