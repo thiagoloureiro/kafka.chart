@@ -137,7 +137,6 @@ spec:
               echo "Storage already formatted, skipping format step"
             fi
             # For non-broker-0 pods, wait a bit to ensure broker 0 has time to initialize
-            {{- if not .Values.kafka.configmap.zookeeper_connect }}
             if [ "$BROKER_ID" != "0" ]; then
               echo "Waiting for broker 0 to initialize before starting broker $BROKER_ID..."
               # Give broker 0 time to start and form the initial quorum
