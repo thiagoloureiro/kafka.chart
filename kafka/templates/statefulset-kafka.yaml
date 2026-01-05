@@ -98,6 +98,9 @@ spec:
             export LOG_DIRS={{ include "kafka.fullpath" . }}
             # Ensure log directory exists (fsGroup in podSecurityContext handles permissions)
             mkdir -p "${LOG_DIRS}"
+            # Remove lost+found directory if it exists (created by ext filesystems)
+            # Kafka doesn't allow any directories that aren't topic-partition format
+            rm -rf "${LOG_DIRS}/lost+found" 2>/dev/null || true
             # /opt/kafka/logs is now writable via initContainer, so GC logging should work
             # No need to patch the script or disable GC logging
             # Copy config to writable location and substitute variables
