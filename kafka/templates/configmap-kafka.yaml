@@ -11,6 +11,8 @@ data:
   server.properties: |
     # Broker ID (set automatically from pod ordinal)
     broker.id=${KAFKA_BROKER_ID}
+    # Node ID (must match broker.id in combined mode)
+    node.id=${KAFKA_BROKER_ID}
     
     {{- if not .Values.kafka.configmap.zookeeper_connect }}
     # KRaft mode configuration (Kafka 4.0+)
@@ -43,6 +45,10 @@ data:
     metadata.log.segment.bytes=10485760
     # Metadata log max snapshot interval (helps with initial cluster formation)
     metadata.log.max.snapshot.interval.ms=3600000
+    # Broker registration timeout (increased for initial cluster formation)
+    broker.registration.timeout.ms=30000
+    # Broker heartbeat interval
+    broker.heartbeat.interval.ms=2000
     {{- else }}
     # Listeners (ZooKeeper mode)
     listeners=${KAFKA_LISTENERS}
