@@ -32,10 +32,13 @@ data:
     advertised.listeners=${KAFKA_ADVERTISED_LISTENERS}
     # Listener security protocol map
     listener.security.protocol.map=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
-    # Controller quorum election timeout
-    controller.quorum.election.timeout.ms=1000
+    # Controller quorum election timeout (increased for better reliability)
+    controller.quorum.election.timeout.lower.bound.ms=2000
+    controller.quorum.election.timeout.upper.bound.ms=4000
     # Controller quorum fetch timeout
     controller.quorum.fetch.timeout.ms=2000
+    # Controller quorum request timeout
+    controller.quorum.request.timeout.ms=2000
     {{- else }}
     # Listeners (ZooKeeper mode)
     listeners=${KAFKA_LISTENERS}
