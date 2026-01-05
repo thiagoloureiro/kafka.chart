@@ -81,10 +81,15 @@ spec:
             # Ensure log directory exists (fsGroup in podSecurityContext handles permissions)
             mkdir -p "${LOG_DIRS}"
             # Disable GC logging to avoid permission issues with /opt/kafka/logs
-            # Patch the startup script to remove the -Xlog GC logging option
+            # Patch the startup script - override KAFKA_JVM_PERFORMANCE_OPTS construction
             cp /opt/kafka/bin/kafka-server-start.sh /tmp/kafka-server-start.sh
-            # Remove the -Xlog GC logging option completely (matches patterns like -Xlog:gc*:file=...)
-            sed -i 's/-Xlog:gc\*:[^ ]*//g' /tmp/kafka-server-start.sh
+            # Find and comment out any line that adds -Xlog:gc to JVM_PERF_OPTS
+            sed -i 's/.*-Xlog:gc.*/# GC logging disabled to avoid permission issues/' /tmp/kafka-server-start.sh
+            # Also try to remove -Xlog:gc from any variable assignments or JVM args
+            sed -i 's/-Xlog:gc[^ ]*//g' /tmp/kafka-server-start.sh
+            sed -i 's/-Xlog:gc\*[^ ]*//g' /tmp/kafka-server-start.sh
+            # Override KAFKA_JVM_PERFORMANCE_OPTS at the start of the script
+            sed -i '1a export KAFKA_JVM_PERFORMANCE_OPTS=""' /tmp/kafka-server-start.sh
             # Ensure base_dir is set correctly for the patched script
             sed -i 's|^\(base_dir=.*\)|base_dir=/opt/kafka/bin|g' /tmp/kafka-server-start.sh
             # Fix any relative paths that depend on base_dir location
