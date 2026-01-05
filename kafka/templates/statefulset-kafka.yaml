@@ -58,8 +58,9 @@ spec:
       securityContext:
         {{- toYaml . | nindent 8 }}
     {{- end }}
-      # Init container to fix permissions for /opt/kafka/logs
+      # Init containers
       initContainers:
+      # Fix permissions for /opt/kafka/logs
       - name: fix-kafka-logs-permissions
         image: busybox:latest
         command: ['sh', '-c']
@@ -73,6 +74,59 @@ spec:
         volumeMounts:
         - name: kafka-logs
           mountPath: /opt/kafka/logs
+      {{- if not .Values.kafka.configmap.zookeeper_connect }}
+      # Format storage for KRaft mode (Bitnami-style approach)
+      - name: format-kafka-storage
+        image: {{ .Values.kafka.image }}:{{ .Values.kafka.imageVersion | default .Chart.AppVersion }}
+        imagePullPolicy: {{ .Values.kafka.imagePullPolicy }}
+        command: ['/bin/bash', '-c']
+        args:
+          - |
+            export POD_ORDINAL=${HOSTNAME##*-}
+            export BROKER_ID=${POD_ORDINAL}
+            export LOG_DIRS={{ include "kafka.fullpath" . }}
+            # Ensure log directory exists
+            mkdir -p "${LOG_DIRS}"
+            # Remove lost+found directory if it exists
+            rm -rf "${LOG_DIRS}/lost+found" 2>/dev/null || true
+            # Check if storage is already formatted
+            if [ ! -f "${LOG_DIRS}/meta.properties" ]; then
+              echo "Formatting Kafka storage for KRaft mode (broker ${BROKER_ID})..."
+              # Generate or use cluster ID
+              CLUSTER_ID="{{ .Values.kafka.configmap.cluster_id }}"
+              if [ -z "$CLUSTER_ID" ]; then
+                # Generate cluster ID from release name (deterministic, same for all pods)
+                CLUSTER_ID=$(echo -n "{{ .Release.Name }}-{{ .Release.Namespace }}" | sha256sum | cut -d' ' -f1 | cut -c1-16)
+              fi
+              # Create minimal config for storage formatting
+              # Must include all voters so validation passes for each broker
+              # Build config file line by line to avoid heredoc YAML parsing issues
+              {
+                echo "broker.id=\${BROKER_ID}"
+                echo "node.id=\${BROKER_ID}"
+                echo "process.roles=broker,controller"
+                echo "controller.listener.names=CONTROLLER"
+                echo "listeners=CONTROLLER://0.0.0.0:{{ .Values.kafka.configmap.controller_listener_port | default "9094" }}"
+                echo "log.dirs=\${LOG_DIRS}"
+                echo "controller.quorum.voters={{- range $i := until (.Values.kafka.replicas | int) }}{{ if $i }},{{ end }}{{ $i }}@{{ include "kafka.fullname" $ }}-{{ $i }}.{{ include "kafka.fullname" $ }}-headless.{{ $.Release.Namespace }}.svc.{{ $.Values.clusterDomain }}:{{ $.Values.kafka.configmap.controller_listener_port | default "9094" }}{{ end }}"
+              } > /tmp/storage-format.properties
+              # Substitute shell variables in the config file (Helm variables already expanded)
+              sed -i "s|\${BROKER_ID}|${BROKER_ID}|g" /tmp/storage-format.properties
+              sed -i "s|\${LOG_DIRS}|${LOG_DIRS}|g" /tmp/storage-format.properties
+              # Format storage
+              /opt/kafka/bin/kafka-storage.sh format -t "$CLUSTER_ID" -c /tmp/storage-format.properties --ignore-formatted
+              echo "Storage formatted with cluster ID: $CLUSTER_ID for node ID: $BROKER_ID"
+            else
+              echo "Storage already formatted, skipping format step"
+            fi
+        securityContext:
+          runAsUser: 1001
+          runAsGroup: 1001
+          fsGroup: 1001
+        volumeMounts:
+        - name: {{ include "kafka.fullname" . }}-data
+          mountPath: {{ include "kafka.fullpath" . }}
+      {{- end }}
       volumes:
       - name: kafka-logs
         emptyDir: {}
@@ -107,7 +161,6 @@ spec:
             # Kafka doesn't allow any directories that aren't topic-partition format
             rm -rf "${LOG_DIRS}/lost+found" 2>/dev/null || true
             # /opt/kafka/logs is now writable via initContainer, so GC logging should work
-            # No need to patch the script or disable GC logging
             # Copy config to writable location and substitute variables
             cp /opt/kafka/config/server.properties /tmp/server.properties
             sed -i "s/\${POD_ORDINAL}/${POD_ORDINAL}/g" /tmp/server.properties
@@ -121,32 +174,7 @@ spec:
             sed -i "s|\${KAFKA_TRANSACTION_STATE_LOG_MIN_ISR}|{{ .Values.kafka.configmap.transaction_state_log_min_isr }}|g" /tmp/server.properties
             sed -i "s|\${KAFKA_LOG_RETENTION_HOURS}|{{ .Values.kafka.configmap.log_retention_hours }}|g" /tmp/server.properties
             sed -i "s|\${KAFKA_LOG_SEGMENT_BYTES}|{{ .Values.kafka.configmap.log_segment_bytes }}|g" /tmp/server.properties
-            # Format storage for KRaft mode if needed
-            # Each broker must format its own storage with the same cluster ID
             {{- if not .Values.kafka.configmap.zookeeper_connect }}
-            if [ ! -f "${LOG_DIRS}/meta.properties" ]; then
-              echo "Formatting Kafka storage for KRaft mode..."
-              CLUSTER_ID="{{ .Values.kafka.configmap.cluster_id }}"
-              if [ -z "$CLUSTER_ID" ]; then
-                # Generate cluster ID from release name (deterministic, same for all pods)
-                CLUSTER_ID=$(echo -n "{{ .Release.Name }}-{{ .Release.Namespace }}" | sha256sum | cut -d' ' -f1 | cut -c1-16)
-              fi
-              # Create a minimal config for storage formatting that includes this node in voters
-              # The storage tool validates that controller nodes must be in the voters list
-              cat > /tmp/storage-format.properties <<EOF
-broker.id=${BROKER_ID}
-node.id=${BROKER_ID}
-process.roles=broker,controller
-controller.listener.names=CONTROLLER
-listeners=CONTROLLER://0.0.0.0:{{ .Values.kafka.configmap.controller_listener_port | default "9094" }}
-log.dirs=${LOG_DIRS}
-controller.quorum.voters={{- range $i := until (.Values.kafka.replicas | int) }}{{ if $i }},{{ end }}{{ $i }}@{{ include "kafka.fullname" $ }}-{{ $i }}.{{ include "kafka.fullname" $ }}-headless.{{ $.Release.Namespace }}.svc.{{ $.Values.clusterDomain }}:{{ $.Values.kafka.configmap.controller_listener_port | default "9094" }}{{ end }}
-EOF
-              /opt/kafka/bin/kafka-storage.sh format -t "$CLUSTER_ID" -c /tmp/storage-format.properties --ignore-formatted
-              echo "Storage formatted with cluster ID: $CLUSTER_ID for node ID: $BROKER_ID"
-            else
-              echo "Storage already formatted, skipping format step"
-            fi
             # For non-broker-0 pods, wait a bit to ensure broker 0 has time to initialize
             if [ "$BROKER_ID" != "0" ]; then
               echo "Waiting for broker 0 to initialize before starting broker $BROKER_ID..."
@@ -156,7 +184,7 @@ EOF
               echo "Starting broker $BROKER_ID..."
             fi
             {{- end }}
-            # Start Kafka (logs directory is now writable via initContainer)
+            # Start Kafka (storage is already formatted by init container)
             /opt/kafka/bin/kafka-server-start.sh /tmp/server.properties
         env:
         - name: POD_ORDINAL
