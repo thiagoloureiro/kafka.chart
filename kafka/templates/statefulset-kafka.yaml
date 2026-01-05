@@ -53,6 +53,24 @@ spec:
       securityContext:
         {{- toYaml . | nindent 8 }}
     {{- end }}
+      # Init container to fix permissions for /opt/kafka/logs
+      initContainers:
+      - name: fix-kafka-logs-permissions
+        image: busybox:latest
+        command: ['sh', '-c']
+        args:
+          - |
+            mkdir -p /opt/kafka/logs
+            chown -R 1001:1001 /opt/kafka/logs || true
+            chmod -R 755 /opt/kafka/logs || true
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - name: kafka-logs
+          mountPath: /opt/kafka/logs
+      volumes:
+      - name: kafka-logs
+        emptyDir: {}
     {{- if .Values.affinity }}
       affinity:
 {{ toYaml .Values.affinity | indent 8 }}
@@ -80,23 +98,8 @@ spec:
             export LOG_DIRS={{ include "kafka.fullpath" . }}
             # Ensure log directory exists (fsGroup in podSecurityContext handles permissions)
             mkdir -p "${LOG_DIRS}"
-            # Disable GC logging to avoid permission issues with /opt/kafka/logs
-            # Patch the startup script - override KAFKA_JVM_PERFORMANCE_OPTS construction
-            cp /opt/kafka/bin/kafka-server-start.sh /tmp/kafka-server-start.sh
-            # Find and comment out any line that adds -Xlog:gc to JVM_PERF_OPTS
-            sed -i 's/.*-Xlog:gc.*/# GC logging disabled to avoid permission issues/' /tmp/kafka-server-start.sh
-            # Also try to remove -Xlog:gc from any variable assignments or JVM args
-            sed -i 's/-Xlog:gc[^ ]*//g' /tmp/kafka-server-start.sh
-            sed -i 's/-Xlog:gc\*[^ ]*//g' /tmp/kafka-server-start.sh
-            # Override KAFKA_JVM_PERFORMANCE_OPTS at the start of the script
-            sed -i '1a export KAFKA_JVM_PERFORMANCE_OPTS=""' /tmp/kafka-server-start.sh
-            # Ensure base_dir is set correctly for the patched script
-            sed -i 's|^\(base_dir=.*\)|base_dir=/opt/kafka/bin|g' /tmp/kafka-server-start.sh
-            # Fix any relative paths that depend on base_dir location
-            sed -i "s|\$base_dir/kafka-run-class|/opt/kafka/bin/kafka-run-class|g" /tmp/kafka-server-start.sh
-            chmod +x /tmp/kafka-server-start.sh
-            # Disable GC logging via environment variable as well
-            export KAFKA_JVM_PERFORMANCE_OPTS=""
+            # /opt/kafka/logs is now writable via initContainer, so GC logging should work
+            # No need to patch the script or disable GC logging
             # Copy config to writable location and substitute variables
             cp /opt/kafka/config/server.properties /tmp/server.properties
             sed -i "s/\${POD_ORDINAL}/${POD_ORDINAL}/g" /tmp/server.properties
@@ -125,8 +128,8 @@ spec:
               echo "Storage already formatted, skipping format step"
             fi
             {{- end }}
-            # Start Kafka using patched script (GC logging disabled)
-            /tmp/kafka-server-start.sh /tmp/server.properties
+            # Start Kafka (logs directory is now writable via initContainer)
+            /opt/kafka/bin/kafka-server-start.sh /tmp/server.properties
         env:
         - name: POD_ORDINAL
           valueFrom:
@@ -209,6 +212,8 @@ spec:
         volumeMounts:
         - name: {{ include "kafka.fullname" . }}-data
           mountPath: {{ include "kafka.fullpath" . }}
+        - name: kafka-logs
+          mountPath: /opt/kafka/logs
         {{- if .Values.kafka.configmap.enabled }}
         - name: {{ include "kafka.fullname" . }}-config
           mountPath: /opt/kafka/config
@@ -232,6 +237,8 @@ spec:
       {{- else }}
         emptyDir: {}
       {{- end }}
+      - name: kafka-logs
+        emptyDir: {}
       {{- if .Values.kafka.configmap.enabled }}
       - name: {{ include "kafka.fullname" . }}-config
         configMap:
