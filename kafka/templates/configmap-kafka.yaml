@@ -7,6 +7,9 @@ metadata:
     app.kubernetes.io/name: {{ include "kafka.name" . }}
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/managed-by: {{ .Release.Service }}
+  annotations:
+    # Include replicas in annotation to force ConfigMap update when replicas change
+    kafka.replicas: {{ .Values.kafka.replicas | quote }}
 data:
   server.properties: |
     # Broker ID (set automatically from pod ordinal)

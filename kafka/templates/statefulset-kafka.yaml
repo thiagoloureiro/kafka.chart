@@ -174,6 +174,17 @@ spec:
             sed -i "s|\${KAFKA_LOG_RETENTION_HOURS}|{{ .Values.kafka.configmap.log_retention_hours }}|g" /tmp/server.properties
             sed -i "s|\${KAFKA_LOG_SEGMENT_BYTES}|{{ .Values.kafka.configmap.log_segment_bytes }}|g" /tmp/server.properties
             {{- if not .Values.kafka.configmap.zookeeper_connect }}
+            # Verify that this broker's node.id is in the controller.quorum.voters list
+            # This is required for KRaft mode - each controller node must be in the voters list
+            QUORUM_VOTERS=$(grep "^controller.quorum.voters=" /tmp/server.properties | cut -d'=' -f2)
+            if ! echo "$QUORUM_VOTERS" | grep -q "${BROKER_ID}@"; then
+              echo "ERROR: Broker ${BROKER_ID} (node.id=${BROKER_ID}) is not in controller.quorum.voters!"
+              echo "Current voters: $QUORUM_VOTERS"
+              echo "This broker must be included in the voters list for KRaft mode."
+              echo "Please ensure the ConfigMap is generated with the correct number of replicas."
+              exit 1
+            fi
+            echo "Verified: Broker ${BROKER_ID} is in controller.quorum.voters: $QUORUM_VOTERS"
             # In KRaft combined mode, the controller needs time to initialize before broker registration
             # For broker 0, wait a bit to ensure the controller component is ready
             if [ "$BROKER_ID" = "0" ]; then
