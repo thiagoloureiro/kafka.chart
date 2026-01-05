@@ -136,6 +136,15 @@ spec:
             else
               echo "Storage already formatted, skipping format step"
             fi
+            # For non-broker-0 pods, wait a bit to ensure broker 0 has time to initialize
+            {{- if not .Values.kafka.configmap.zookeeper_connect }}
+            if [ "$BROKER_ID" != "0" ]; then
+              echo "Waiting for broker 0 to initialize before starting broker $BROKER_ID..."
+              # Give broker 0 time to start and form the initial quorum
+              # With OrderedReady, broker 0 should be running, but may still be initializing
+              sleep 30
+              echo "Starting broker $BROKER_ID..."
+            fi
             {{- end }}
             # Start Kafka (logs directory is now writable via initContainer)
             /opt/kafka/bin/kafka-server-start.sh /tmp/server.properties

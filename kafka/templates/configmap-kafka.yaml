@@ -32,13 +32,17 @@ data:
     advertised.listeners=${KAFKA_ADVERTISED_LISTENERS}
     # Listener security protocol map
     listener.security.protocol.map=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
-    # Controller quorum election timeout (increased for better reliability)
-    controller.quorum.election.timeout.lower.bound.ms=2000
-    controller.quorum.election.timeout.upper.bound.ms=4000
+    # Controller quorum election timeout (increased for better reliability during startup)
+    controller.quorum.election.timeout.lower.bound.ms=5000
+    controller.quorum.election.timeout.upper.bound.ms=10000
     # Controller quorum fetch timeout
-    controller.quorum.fetch.timeout.ms=2000
+    controller.quorum.fetch.timeout.ms=5000
     # Controller quorum request timeout
-    controller.quorum.request.timeout.ms=2000
+    controller.quorum.request.timeout.ms=5000
+    # Metadata log segment interval (helps with initial cluster formation)
+    metadata.log.segment.bytes=10485760
+    # Metadata log max snapshot interval (helps with initial cluster formation)
+    metadata.log.max.snapshot.interval.ms=3600000
     {{- else }}
     # Listeners (ZooKeeper mode)
     listeners=${KAFKA_LISTENERS}

@@ -148,10 +148,10 @@ kafka:
   ## More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes
   readinessProbe:
     enabled: true
-    initialDelaySeconds: 10
+    initialDelaySeconds: 60
     periodSeconds: 10
     timeoutSeconds: 5
-    failureThreshold: 3
+    failureThreshold: 6
     successThreshold: 1
 
   ## volumeClaimTemplates is a list of claims that pods are allowed to reference.
