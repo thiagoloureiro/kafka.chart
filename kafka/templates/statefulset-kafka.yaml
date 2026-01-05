@@ -122,26 +122,17 @@ spec:
             sed -i "s|\${KAFKA_LOG_RETENTION_HOURS}|{{ .Values.kafka.configmap.log_retention_hours }}|g" /tmp/server.properties
             sed -i "s|\${KAFKA_LOG_SEGMENT_BYTES}|{{ .Values.kafka.configmap.log_segment_bytes }}|g" /tmp/server.properties
             # Format storage for KRaft mode if needed
-            # Only format if this is the first broker (broker 0) or if storage is not formatted
+            # Each broker must format its own storage with the same cluster ID
             {{- if not .Values.kafka.configmap.zookeeper_connect }}
             if [ ! -f "${LOG_DIRS}/meta.properties" ]; then
-              # Only broker 0 should format on first startup
-              # Other brokers will join the existing cluster
-              if [ "$BROKER_ID" = "0" ]; then
-                echo "Formatting Kafka storage for KRaft mode (first broker)..."
-                CLUSTER_ID="{{ .Values.kafka.configmap.cluster_id }}"
-                if [ -z "$CLUSTER_ID" ]; then
-                  # Generate cluster ID from release name (deterministic, same for all pods)
-                  CLUSTER_ID=$(echo -n "{{ .Release.Name }}-{{ .Release.Namespace }}" | sha256sum | cut -d' ' -f1 | cut -c1-16)
-                fi
-                /opt/kafka/bin/kafka-storage.sh format -t "$CLUSTER_ID" -c /tmp/server.properties --ignore-formatted
-                echo "Storage formatted with cluster ID: $CLUSTER_ID for node ID: $BROKER_ID"
-              else
-                echo "Waiting for broker 0 to initialize cluster before joining..."
-                echo "Broker $BROKER_ID will join existing cluster once broker 0 is ready"
-                # Wait a bit for broker 0 to be ready
-                sleep 10
+              echo "Formatting Kafka storage for KRaft mode..."
+              CLUSTER_ID="{{ .Values.kafka.configmap.cluster_id }}"
+              if [ -z "$CLUSTER_ID" ]; then
+                # Generate cluster ID from release name (deterministic, same for all pods)
+                CLUSTER_ID=$(echo -n "{{ .Release.Name }}-{{ .Release.Namespace }}" | sha256sum | cut -d' ' -f1 | cut -c1-16)
               fi
+              /opt/kafka/bin/kafka-storage.sh format -t "$CLUSTER_ID" -c /tmp/server.properties --ignore-formatted
+              echo "Storage formatted with cluster ID: $CLUSTER_ID for node ID: $BROKER_ID"
             else
               echo "Storage already formatted, skipping format step"
             fi
